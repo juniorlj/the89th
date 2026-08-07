@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 #include "ParameterIDs.h"
 
 namespace
@@ -169,7 +170,7 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
 juce::AudioProcessorEditor* The89thProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor (*this);
+    return new The89thEditor (*this);
 }
 
 void The89thProcessor::getStateInformation (juce::MemoryBlock& destData)
