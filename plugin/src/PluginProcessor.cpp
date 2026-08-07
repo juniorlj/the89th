@@ -52,6 +52,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
     layout.add (std::make_unique<AudioParameterBool> (
         ParameterID { pid::freeze, 1 }, "Freeze", false));
 
+    layout.add (std::make_unique<AudioParameterBool> (
+        ParameterID { pid::init, 1 }, "Init", false));
+
     return layout;
 }
 
@@ -68,6 +71,42 @@ The89thProcessor::The89thProcessor()
     mix_       = apvts.getRawParameterValue (pid::mix);
     bandwidth_ = apvts.getRawParameterValue (pid::bandwidth);
     freeze_    = apvts.getRawParameterValue (pid::freeze);
+
+    apvts.addParameterListener (pid::init, this);
+}
+
+The89thProcessor::~The89thProcessor()
+{
+    apvts.removeParameterListener (pid::init, this);
+    cancelPendingUpdate();
+}
+
+void The89thProcessor::parameterChanged (const juce::String& id, float value)
+{
+    // Called from whichever thread moved the control, possibly the audio one,
+    // so do nothing here but hand off.
+    if (id == pid::init && value > 0.5f)
+        triggerAsyncUpdate();
+}
+
+void The89thProcessor::handleAsyncUpdate()
+{
+    for (auto* p : getParameters())
+    {
+        auto* withID = dynamic_cast<juce::AudioProcessorParameterWithID*> (p);
+        if (withID == nullptr || withID->paramID == pid::init)
+            continue;
+
+        p->setValueNotifyingHost (p->getDefaultValue());
+    }
+
+    // Clear the machine as well as the panel: a half-full delay line is state
+    // the user cannot see, and leaving it makes Init feel like it half worked.
+    // The audio thread owns the engine, so ask rather than reach in.
+    resetRequested_.store (true);
+
+    if (auto* initParam = apvts.getParameter (pid::init))
+        initParam->setValueNotifyingHost (0.0f);
 }
 
 void The89thProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -118,6 +157,9 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
     for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
+
+    if (resetRequested_.exchange (false))
+        engine_.reset();
 
     engine_.setParams (readParams());
     engine_.process (buffer.getArrayOfWritePointers(),

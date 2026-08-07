@@ -11,4 +11,5 @@ inline constexpr const char* feedback    = "feedback";
 inline constexpr const char* mix         = "mix";
 inline constexpr const char* bandwidth   = "bandwidth";
 inline constexpr const char* freeze      = "freeze";
+inline constexpr const char* init        = "init";
 } // namespace pid

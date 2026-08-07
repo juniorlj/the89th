@@ -42,3 +42,24 @@ target_link_libraries(the89th_plugin
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+# The generic editor drives the AudioProcessor directly, so exercising that
+# class is exercising what the controls actually do. Links the plugin's shared
+# code rather than going through the VST3 wrapper.
+if(THE89TH_BUILD_TESTS)
+    add_executable(the89th_plugin_tests tests/test_plugin.cpp)
+
+    # Needed to pump the message thread so AsyncUpdater callbacks land, which is
+    # how Init hands off from whichever thread moved the control.
+    target_compile_definitions(the89th_plugin_tests PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1)
+
+    target_link_libraries(the89th_plugin_tests PRIVATE
+        the89th_plugin
+        the89th::core
+        juce::juce_audio_utils
+        Catch2::Catch2WithMain
+        juce::juce_recommended_config_flags
+    )
+
+    catch_discover_tests(the89th_plugin_tests)
+endif()
