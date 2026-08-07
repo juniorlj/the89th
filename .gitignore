@@ -2,9 +2,6 @@ build/
 build-*/
 cmake-build-*/
 
-.claude/
-.cursor/
-
 .DS_Store
 *.swp
 *~
@@ -13,6 +10,7 @@ cmake-build-*/
 .idea/
 *.xcodeproj/
 *.xcworkspace/
+.claude/
 
 # Render output from the CLI
 *.out.wav

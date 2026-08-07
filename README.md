@@ -38,6 +38,21 @@ docs/          design notes and hardware research
 
 Start with [`docs/what-this-is.md`](docs/what-this-is.md) for the plain-English picture.
 
+## Todo — full replication
+
+Phase 0 got the architecture right. Still missing for a close match to the hardware:
+
+- [ ] Flying-comma converter (≈13-bit gain-ranging store, not linear float)
+- [ ] Anti-alias and reconstruction filters around the rate converter (low bandwidth currently aliases instead of ringing)
+- [ ] Xing — signal-informed splice points and adaptive fade length
+- [ ] Pre / de-emphasis in delay mode (bypassed in pitch mode)
+- [ ] Quasi-stereo routing (full 16,384-word memory, 20 kHz live)
+- [ ] Vibrato / LFO / random position scrub
+- [ ] Per-channel controls (DSP already has separate L/R params)
+- [ ] MIDI / keyboard companion layer (pitch clock, latch, loop scrub)
+- [ ] Real GUI (generic editor is temporary)
+- [ ] Hardware-style output clip into the converter range (no limiter today — feedback runs hot)
+
 ## Git
 
 ```bash
