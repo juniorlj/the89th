@@ -1,0 +1,16 @@
+build/
+build-*/
+cmake-build-*/
+
+.DS_Store
+*.swp
+*~
+
+.vscode/
+.idea/
+*.xcodeproj/
+*.xcworkspace/
+
+# Render output from the CLI
+*.out.wav
+renders/
