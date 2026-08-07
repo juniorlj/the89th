@@ -20,16 +20,6 @@ ctest --test-dir build --output-on-failure
 
 Needs CMake, Ninja, and Apple clang. JUCE and Catch2 download on first configure.
 
-## Live edit
-
-After a VST3 rebuild, reload the wrapper in FL (gear → **Reload plugin**, or accept the update prompt). The editor banner shows version, build time, and git hash so you can tell the new binary loaded.
-
-Host-free loop:
-
-```bash
-cmake --build build --target run_the89th
-```
-
 ## Controls
 
 Pitch · Crosspoint 1 · Crosspoint 2 · Feedback · Mix · Bandwidth · Freeze · Init
@@ -58,3 +48,7 @@ git push
 ```
 
 `build/` is ignored. Do not commit render WAVs or IDE junk.
+
+## Credits
+
+Created by [juniorlj](https://github.com/juniorlj) and Cursor.

@@ -2,6 +2,9 @@ build/
 build-*/
 cmake-build-*/
 
+.claude/
+.cursor/
+
 .DS_Store
 *.swp
 *~
