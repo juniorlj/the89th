@@ -109,9 +109,21 @@ The hardware crossfades *at the jump*, via VCAs. So:
 - When primary comes within `crossfadeSamples` of the far bound, the **secondary** launches at the near bound and an equal-power fade runs for exactly `crossfadeSamples`.
 - At the end the roles swap. Between splices, secondary gain is exactly 0.
 
-At ratio 1.0 forward, `delayStep == 0`, no bound is ever reached, no splice fires, secondary stays silent. Transparency is structural rather than a tolerance. During a fade the two heads sit a constant `L - crossfadeSamples` apart in delay.
+At ratio 1.0 forward, `delayStep == 0`, no bound is ever reached, no splice fires, secondary stays silent. Transparency is structural rather than a tolerance.
 
 Fixed length in Phase 0. `Xing` (autocorrelation splice-point search + adaptive segment length) later replaces *where* the splice fires and *how long* it lasts, behind the same interface.
+
+### 2.1 Three corrections the tests forced
+
+The sketch above was wrong in three places. Each was caught by a failing test, and each is worth recording because the naive version looks right on paper.
+
+**Head placement follows the sign of the step, not crosspoint order.** Placing the head on crosspoint 2 because the research calls it "the start" puts a ratio-below-1.0 head on the bound it is about to leave: those drift *deeper* and exit at the far bound. It then spliced on sample one, into memory nothing had been written to yet. The entry bound is `step > 0 ? lo : hi`, full stop.
+
+**The incoming head launches on the entry bound, not one region length behind the outgoing one.** A full-region offset is the textbook answer and it fails whenever the region spans most of memory: launching 96 samples early asks for a *negative* delay, `clampDelay` pins the head at the minimum, and a pinned head tracks the write pointer at 1× instead of the pitch ratio. Every fade then mixed in untransposed signal. At ratio 0.5 that measured as a 0.107 per-sample step where a clean 220 Hz tone can only reach 0.047 — the leak was the input's own 440 Hz slew, showing up exactly where the "no discontinuity" test looks. The fix offsets by the fade's own travel, `wrapped(primary) + activeFade * step`, which keeps both heads inside the region for the whole crossfade.
+
+**The fade is capped at a quarter of the traversal, not a half.** Handover leaves the head one fade's travel inside the entry bound. At a half-region cap that lands it back in trigger range on the very next sample, and on a short region the handover position ratchets outward a little further on every splice until it walks out of memory entirely. A quarter leaves three fades of clearance.
+
+Consequence worth knowing: a traversal is now the region shortened by one fade's travel, so the splice period is `regionLength/|step| - crossfadeSamples`, not `regionLength/|step|`.
 
 ---
 
@@ -299,16 +311,19 @@ The feedback tap is post-crossfade and pre-mix, so repeats re-enter the pitch sh
 
 All against `ChannelEngine` at its internal rate, bypassing the resampler. This matters for the transparency test: the host-to-internal resampler is a rate conversion, so a plugin-level round trip can never be bit-exact. Transparency is a property of the delay path, and that is what gets asserted.
 
-| Test | Assertion |
+28 test cases, 136k assertions, wired into ctest. Built and passing.
+
+| File | What it pins down |
 |---|---|
-| `transparency` | ratio 1.0, xp1 < xp2, integer delay: output == input delayed by exactly D samples, bit-exact (`==`, not `Approx`) |
-| `pitch_ratio` | 440 Hz sine, ratio 2.0: measured f0 of output is 880 Hz ±1% (autocorrelation or parabolic-interpolated FFT peak) |
-| `splice` | full-scale sine through many splices: `max |y[n] - y[n-1]|` never exceeds the per-sample delta the same sine reaches naturally, plus margin |
-| `traversal` | pure state machine: wrap fires at the right bound, signed rate sign follows crosspoint order, delay stays in region |
-| `bandwidth_jump` | write at 26455, switch to 13227.5: buffer contents and write pointer unchanged, measured f0 halves |
-| `bandwidth_clamp` | in true stereo, requesting 20 kHz yields `effectiveBandwidth() == k10kHz` and an internal rate of 26455 Hz |
+| `test_transparency` | ratio 1.0 forward: output `==` input delayed by exactly 8189 samples, bit-exact, under both interpolators. Plus: silence before the delay fills, and no splice ever fires |
+| `test_pitch` | 440 Hz in, measured f0 out within 1% for ratios 2.0, 1.5, 1.0, 0.75, 0.5; reverse holds pitch at ratio 1.0 and composes with transposition; freeze keeps looping after the input stops |
+| `test_splice` | six ratio/direction combinations: `max\|y[n]-y[n-1]\|` stays under twice the steepest step that output frequency can naturally take. Includes a negative control at fade length 1 that must *fail* that bound, so the threshold is proving something |
+| `test_traversal` | pure state machine: step arithmetic for all six cases in §1.3, head placement on the entry bound, both heads inside memory across a splice, equal-power gains, splice period, degenerate region |
+| `test_bandwidth` | rate table, the 8192-word split, 20 kHz clamping to 10 kHz in true stereo, published delay maxima, memory and pointers bit-identical across a switch, stored audio replaying an octave down at half the clock, and a live switch mid-stream |
 
 The transparency test needs an interpolating kernel, meaning one that returns the exact sample at `frac == 0`. Linear and Catmull-Rom both do.
+
+A note on measuring pitch in tests: a pure sine correlates just as well at every multiple of its period, so a plain autocorrelation argmax reports an arbitrary octave. `estimatePeriod` takes the shortest lag that is a local peak within 90% of the best. Getting this wrong reads a correct 880 Hz output as 440 Hz and looks exactly like a broken pitch shifter.
 
 ---
 
@@ -317,7 +332,7 @@ The transparency test needs an interpolating kernel, meaning one that returns th
 | Later feature | Seam |
 |---|---|
 | Flying-comma quantiser (13-bit) | `Quantiser.hpp`, currently identity, called on write and read in `DelayMemory` |
-| Anti-alias / reconstruction filters | `BandLimit.hpp`, currently identity, sits either side of the resampler |
+| Anti-alias / reconstruction filters | `BandLimit.hpp`, currently identity, sits either side of the resampler. **Measurable today**: a 440 Hz tone rendered at 5 kHz bandwidth comes back with an image at 12787 Hz at 0.73 of the fundamental, and at 10 kHz one at 21985 Hz at 0.13. These are reconstruction images from an unfiltered upsample, not the hardware's ringing. Worth fixing before any serious A/B |
 | Xing adaptive splice | `SpliceTraversal` decides *when* to fire and *how long* to fade; both become virtual policy |
 | Vibrato / LFO / random position | additive offset applied to `delaySamples` before the read |
 | MIDI, KB 2000 | control layer writing `ChannelParams`, no DSP change |
@@ -327,16 +342,28 @@ The transparency test needs an interpolating kernel, meaning one that returns th
 
 ---
 
-## 7. Toolchain reality check
+## 7. Toolchain
 
-Verified on this machine:
+Installed and building:
 
-- `cmake` is **not installed**. Blocker. `brew install cmake ninja`.
-- Only Command Line Tools, no full Xcode. `xcodebuild` is unavailable, so builds use the **Ninja generator**. JUCE 8 dropped the Rez step for AUv2, so an AU bundle is expected to build under CLT. I will verify by running `auval` rather than assume it.
-- `auval`, clang 17, git, Homebrew, arm64: all present.
-- JUCE 8 and Catch2 v3 fetched by CPM at configure time, pinned by tag. Nothing to install by hand.
+- cmake 4.4.2 and ninja 1.13.2, via Homebrew.
+- Apple clang 17, arm64, Command Line Tools only. No full Xcode, so the **Ninja generator**. VST3 needs nothing more.
+- JUCE 8.0.15 and Catch2 v3.15.3 fetched by CPM at configure time, pinned by tag and shallow-cloned. `dr_wav` vendored as a single public-domain header.
+- **VST3 only.** AU dropped per your call, so `auval` and the Xcode question are both moot.
 
-JUCE 8 is GPLv3 or commercial. A private internal tool that you never distribute is fine under GPLv3. Flagging it only so it is a decision rather than a discovery.
+Build and test:
+
+```
+cmake -S . -B build -G Ninja
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The VST3 lands in `build/plugin/the89th_plugin_artefacts/RelWithDebInfo/VST3/` and copies itself to `~/Library/Audio/Plug-Ins/VST3/`. Verified loadable: `dlopen` on the bundle binary, `bundleEntry`, then `GetPluginFactory` reports vendor THE89TH and two classes (Audio Module + Component Controller).
+
+Zero warnings under `juce_recommended_warning_flags`, which is stricter than the core's own build and caught 21 signed-index conversions in `Engine.hpp`.
+
+JUCE 8 is GPLv3 or commercial. A private internal tool you never distribute is fine under GPLv3, which is also the basis for setting `JUCE_DISPLAY_SPLASH_SCREEN=0`. Flagging it so it is a decision rather than a discovery.
 
 ---
 
@@ -348,7 +375,7 @@ The dossier is now `docs/hardware-research.md`. Its **contents** still name the 
 
 One thing outside the repo: the enclosing folder is still `PUBLISON DHM 89 B2 CLONE`. It sits above the repo root, so nothing I generate references it, but you may want to rename it.
 
-Plugin metadata I will use unless you say otherwise:
+Plugin metadata as built:
 
 | Field | Value |
 |---|---|
@@ -358,4 +385,22 @@ Plugin metadata I will use unless you say otherwise:
 | Manufacturer code | `Lj89` |
 | Bundle id | `com.the89th.the89th` |
 
-AU requires at least one uppercase character in the manufacturer code, which `Lj89` satisfies.
+Grep confirms no trademarked string in any source file, filename, or build output.
+
+---
+
+## 9. Parameters as shipped
+
+One set drives both channels. The hardware has independent per-channel controls and `EngineParams` already carries separate `left` and `right` structs, so splitting them is a layout change in `PluginProcessor` and no DSP change at all.
+
+| Parameter | Range | Default | Note |
+|---|---|---|---|
+| Pitch | 0.25 – 2.0, skewed to centre on 1.0 | 1.0 | displays as ratio and semitones |
+| Crosspoint 1 | 0 – 1 | 0.0 | set above crosspoint 2 to reverse |
+| Crosspoint 2 | 0 – 1 | 1.0 | |
+| Feedback | 0 – 0.99 | 0.0 | pitch shifter is inside the loop |
+| Mix | 0 – 1 | 1.0 | |
+| Bandwidth | 5 / 10 / 20 kHz | 10 kHz | 20 kHz labelled "mono only" and clamps to 10 in stereo |
+| Freeze | bool | off | |
+
+No output limiting anywhere. Feedback at 0.7 with an equal-power splice measured a peak of 2.35 on a full-scale input. The hardware would have clipped into its converter; nothing here does, so it will run hot into whatever follows.
