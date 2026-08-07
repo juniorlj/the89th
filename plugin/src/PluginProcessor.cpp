@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "ParameterIDs.h"
+#include "Version.h"
 
 namespace
 {
@@ -16,6 +17,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
 {
     using namespace juce;
     AudioProcessorValueTreeState::ParameterLayout layout;
+
+    // Lives in the parameter list so hosts that ignore editor chrome (or keep a
+    // stale mapped binary's editor) still show which build is loaded.
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::build, 1 }, "Build",
+        StringArray { the89th_version::banner() }, 0,
+        AudioParameterChoiceAttributes{}.withAutomatable (false)));
 
     // 0.25 to 2.0 is the hardware's span: two octaves down to one up. Skewed so
     // unity sits mid-travel rather than three quarters of the way along.
@@ -95,7 +103,9 @@ void The89thProcessor::handleAsyncUpdate()
     for (auto* p : getParameters())
     {
         auto* withID = dynamic_cast<juce::AudioProcessorParameterWithID*> (p);
-        if (withID == nullptr || withID->paramID == pid::init)
+        if (withID == nullptr
+            || withID->paramID == pid::init
+            || withID->paramID == pid::build)
             continue;
 
         p->setValueNotifyingHost (p->getDefaultValue());

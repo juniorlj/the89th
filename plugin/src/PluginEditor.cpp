@@ -8,15 +8,19 @@ The89thEditor::The89thEditor (The89thProcessor& p)
 {
     stamp_.setText (the89th_version::banner(), juce::dontSendNotification);
     stamp_.setJustificationType (juce::Justification::centred);
-    stamp_.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.85f));
-    stamp_.setColour (juce::Label::backgroundColourId, juce::Colour (0xff1a1a1a));
-    stamp_.setFont (juce::FontOptions (12.0f).withStyle ("Regular"));
+    stamp_.setColour (juce::Label::textColourId, juce::Colours::white);
+    stamp_.setColour (juce::Label::backgroundColourId, juce::Colour (0xff0d0d0d));
+    stamp_.setFont (juce::FontOptions (13.0f));
     stamp_.setInterceptsMouseClicks (false, false);
 
     addAndMakeVisible (stamp_);
     addAndMakeVisible (params_);
 
-    setSize (params_.getWidth(), params_.getHeight() + kStampH);
+    // GenericAudioProcessorEditor may report 0 until laid out; fall back so the
+    // host still opens a usable window with the stamp visible.
+    const int w = juce::jmax (params_.getWidth(), 400);
+    const int h = juce::jmax (params_.getHeight(), 280);
+    setSize (w, h + kStampH);
 }
 
 void The89thEditor::paint (juce::Graphics& g)

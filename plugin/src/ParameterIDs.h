@@ -4,6 +4,7 @@
     so they live apart from the layout that builds them. */
 namespace pid
 {
+inline constexpr const char* build       = "build";
 inline constexpr const char* pitch       = "pitch";
 inline constexpr const char* crosspoint1 = "xp1";
 inline constexpr const char* crosspoint2 = "xp2";

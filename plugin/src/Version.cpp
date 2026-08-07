@@ -11,9 +11,10 @@ const char* gitHash() noexcept    { return THE89TH_GIT_HASH; }
 
 const char* banner() noexcept
 {
-    static char text[96];
-    std::snprintf (text, sizeof (text), "%s  ·  %s  ·  %s",
-                   THE89TH_VERSION, THE89TH_BUILD_STAMP, THE89TH_GIT_HASH);
+    static char text[64];
+    // ASCII only — hosts often mis-decode UTF-8 middle dots as "Â·".
+    std::snprintf (text, sizeof (text), "%s  |  %s",
+                   THE89TH_VERSION, THE89TH_GIT_HASH);
     return text;
 }
 } // namespace the89th_version
