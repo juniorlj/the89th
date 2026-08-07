@@ -38,20 +38,33 @@ docs/          design notes and hardware research
 
 Start with [`docs/what-this-is.md`](docs/what-this-is.md) for the plain-English picture.
 
+## Not correct yet
+
+The architecture matches the original (fixed write head, two reads, delay-domain reverse, clocked bandwidth). These parts are already in the path but do not behave like the hardware:
+
+- **Splice** — fixed length, fixed timing. The original picks join points from the signal (Xing / autocorrelation) so the cut lands where the waveform already matches. Ours always jumps on schedule. Clean, less musical.
+- **Low bandwidth** — no anti-alias or reconstruction filters. At 5 kHz a 440 Hz tone comes back with a loud image around 12.8 kHz. The original rings there; we alias.
+- **Memory format** — full float into RAM. The original stores ≈13-bit flying-comma words (gain-ranged). Error should track level; ours is too clean.
+- **Crossfade** — digital equal-power cosine/sine. The original used analog VCAs at the jump. Level handoff is right; the grain is not.
+- **Host ↔ internal rate** — linear lerp resampler. The hardware A/D–D/A path is a different animal once the filters and converter land.
+- **Feedback headroom** — no converter clip. Push feedback and we sail past full scale. The original hit its own converter and folded.
+- **Stereo controls** — one knob set drives both channels. The hardware has independent pitch, crosspoints, and freeze per side (DSP already allows it; the UI does not).
+- **Routing** — true stereo only. Quasi-stereo (shared input, full 16,384-word memory, 20 kHz) is not wired. At max clock the original also merged the two returns into feedback; we keep L/R separate.
+- **Pitch input** — ratio knob only. The original also took a TTL pitch clock (≈26–212 kHz) and a rear CV/remote set.
+- **Later-unit extras** — no vibrato depth/speed, no short/long memory range switch.
+
 ## Todo — full replication
 
-Phase 0 got the architecture right. Still missing for a close match to the hardware:
-
-- [ ] Flying-comma converter (≈13-bit gain-ranging store, not linear float)
-- [ ] Anti-alias and reconstruction filters around the rate converter (low bandwidth currently aliases instead of ringing)
+- [ ] Flying-comma converter (≈13-bit gain-ranging store)
+- [ ] Anti-alias and reconstruction filters (ringing, not aliasing)
 - [ ] Xing — signal-informed splice points and adaptive fade length
 - [ ] Pre / de-emphasis in delay mode (bypassed in pitch mode)
-- [ ] Quasi-stereo routing (full 16,384-word memory, 20 kHz live)
+- [ ] Quasi-stereo routing + merged high-rate feedback path
+- [ ] Per-channel UI (left/right already separate in the engine)
 - [ ] Vibrato / LFO / random position scrub
-- [ ] Per-channel controls (DSP already has separate L/R params)
-- [ ] MIDI / keyboard companion layer (pitch clock, latch, loop scrub)
+- [ ] External pitch clock + MIDI / keyboard companion layer
 - [ ] Real GUI (generic editor is temporary)
-- [ ] Hardware-style output clip into the converter range (no limiter today — feedback runs hot)
+- [ ] Converter-style output clip on the feedback/write path
 
 ## Git
 
