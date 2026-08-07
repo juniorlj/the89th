@@ -1,6 +1,6 @@
 # THE89TH
 
-Private Mac plugin. Dual-channel pitch-shifting delay, modelled on a 1978 French studio box: one write head, two moving read heads, crossfade at the splice.
+Private Mac VST effect-plugin. Dual-channel pitch-shifting delay, modelled on a 1978 French studio box.
 
 **Status:** Phase 0. VST3 + Standalone, Apple Silicon. Version `0.0.1`.
 
