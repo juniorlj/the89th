@@ -1,6 +1,16 @@
 # THE89TH: Phase 1 design proposal
 
-Status: **for review, nothing implemented yet.**
+Status: **for review. Paused while the clone was finished, and several items are now done as part of the hardware.**
+
+> **Already done by the clone work** (see [`clone-status.md`](clone-status.md)):
+> - Band-limit filters and converter clip (step 3), in their authentic form.
+> - Per-side controls for pitch, crosspoints, feedback and delay (part of step 4). The hardware had them.
+> - Vibrato (part of step 7): per channel, sine.
+> - Millisecond readouts for delay and crosspoints (part of step 2).
+>
+> **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, smoothing, presets and A/B, and the GUI.
+>
+> **Parameter IDs** below predate the clone work. The plugin now uses `pitch`/`pitch_r` as a ratio (the hardware's control), plus `delay`, `mode`, `stereo`, `range` and the vibrato IDs. Revise section 3 before building.
 
 Scope: everything you picked.
 
