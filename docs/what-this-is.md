@@ -80,38 +80,42 @@ Only one of those matches the published delay times. 16,384 lands on 300, 600 an
 
 So the memory is 16,384 slots, and each slot is roughly 13 bits, not 16. That number is now baked into the plugin, and it sets the delay times you get.
 
-It also settles something for later. The original stored sound in an unusual format that keeps its error proportional to how loud the signal is, instead of fixed. When we build that, it needs to be 13 bits wide, not 16. Getting that wrong would have made everything slightly too clean.
+It also settled the storage format. The original stored sound in an unusual format that keeps its error proportional to how loud the signal is, instead of fixed. It had to fit in 13 bits. There are only a few ways to split 13 bits into a number and a scale, and only one of them gives the 95 dB range the specs quote: a 9-bit number and a 3-bit scale. That's what the plugin uses now. It means every sample keeps about the same small grain whether it's loud or quiet, and that grain is part of the sound.
 
 ---
 
-## What is deliberately missing
+## What got added to finish the clone
 
-This is a first pass. Four things are left out on purpose, with the hooks in place for each.
+**Two modes.** The original has a switch for Delay or Pitch, and a Delay knob on each channel. In Delay mode each channel is a plain delay. It also adds a treble lift before storing and takes it back off afterwards, which pushes the storage noise down. In Pitch mode the two playback heads move through the crosspoint region, and the treble lift is switched off. It's switched off because a pitch-shifted replay would move the lift and leave the treble wrong. Phase 0 only had Pitch mode.
 
-**The smart join.** The original works out where in the sound to make the jump, so the join lands somewhere the waveform already matches. Ours always joins after the same fixed interval. This is the hardest part of the whole machine to copy and the person who made the best-known modern version says he did not manage it either. Ours is clean, but it will not have the original's knack for landing the join musically.
+**Two stereo layouts.** In true stereo, each channel gets half the memory and half the converter, so it can't reach 20 kHz. In quasi-stereo, one input fills the whole memory at full speed, both channels read from it with their own pitch and crosspoints, and 20 kHz works. With only one input being recorded, the two outputs are mixed together before they go back in as feedback.
 
-**The filters.** Real converters need filters either side of them. Ours has none yet, and you can measure the result: at the 5 kHz setting a 440 Hz tone comes back with an extra tone at 12787 Hz nearly as loud as the note itself. On the original that region has a particular ringing quality. On ours it is currently just a wrong noise. Fix this before judging the low settings by ear.
+**The storage format.** Described above: 13 bits, with an error that follows the level. It also clips at full scale, so pushing feedback can no longer run away. It folds like the original's converter did.
 
-**The storage format.** Sound currently goes into memory at full quality. The original's format is part of its character. Left for later.
+**Word-by-word reading.** The original reads memory with counters and no arithmetic, so a moving playback head just takes whichever stored word it lands on. It repeats some and skips others. Phase 0 blended neighbouring words together, which is cleaner than the original and lost treble at the top of each band. Now it reads word by word.
 
-**Vibrato, LFOs, MIDI, and a proper interface.** None present. The controls are JUCE's plain list for now.
+**The filters.** The original has filters either side of its converter. We added them. At the 5 kHz setting, the false tone at 12.8 kHz that Phase 0 made nearly as loud as the note is now over 150 dB down. Each band reaches its published −3 dB point at 5, 10 or 20 kHz.
 
-Also worth knowing: there is no limiter anywhere. Push feedback up and the output can go well past full scale. The original ran into its own converter and clipped. Ours will just get loud.
+**The smart join.** The original picks where to join so the waveform lines up. Ours now does too. At each join it searches for the spot where the stored sound best matches what's playing, and jumps there. On a steady tone the join becomes inaudible: even a join with no fade at all makes no click. Nobody has published how the original circuit did this. So ours copies what it does, not how. It's the part most likely to sound different from a real one.
+
+**The short range and vibrato.** Later units had a switch that divides the delay range by ten, for doubling and flanging. They also had vibrato depth and speed per channel. Both are in.
+
+**What's still missing:** the rear-panel control sockets and the keyboard that plugged into them. They control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those we made reasoned choices and wrote them down. [`clone-status.md`](clone-status.md) lists each one.
 
 ---
 
 ## What you have
 
-A VST3, installed and ready. Mac, Apple Silicon.
+A VST3, installed and ready. Mac, Apple Silicon. A Standalone app, and a command-line renderer that turns a WAV into a WAV so you can compare settings without opening a DAW.
 
-A command line renderer that takes a WAV in and writes a WAV out, so you can compare settings without opening a DAW.
+The controls match the original's panel. The global switches are Mode, Stereo, Range, Bandwidth, Freeze and Mix. Each channel gets Delay, Pitch, both Crosspoints, Feedback and Vibrato. There's also Init. Delay and crosspoints read in milliseconds.
 
-Controls: Pitch, Crosspoint 1, Crosspoint 2, Feedback, Mix, Bandwidth, Freeze, Init.
+69 automated tests. The ones that matter most:
 
-31 automated tests. The ones that matter most:
+- At pitch 1.0, and in delay mode, the sound comes out **identical**, bit for bit, apart from the storage format's own grain. The tests check that too.
+- A 440 Hz tone at pitch 2.0 comes out at 880 Hz, to within 1%.
+- A click sent through the whole plugin comes out exactly when the delay setting says it should. This test caught a bug that had been there since Phase 0: for the first pass through memory, part of the output was a whole memory's length late. A steady tone hid it completely.
+- The false tone at 5 kHz bandwidth is over 150 dB down, and each band edge lands within 1 dB of its published point.
+- With the smart join on, the level stays flat through every join on a steady tone.
 
-- At pitch 1.0 the sound comes out the far end **identical**, bit for bit. Not close, identical. If anything in the delay path were subtly wrong this test would fail.
-- A 440 Hz tone at pitch 2.0 comes out at 880 Hz, checked to within 1%.
-- The join never produces a jump bigger than the sound could make on its own, checked across six pitch and direction combinations. There is a deliberately broken version in the tests that has to fail this check, so we know the check is capable of catching something.
-
-Two of those tests found real bugs while this was being built. Both were in the crossfade, and both looked correct on paper.
+Several of these tests found real bugs while this was being built, and each bug looked correct on paper.

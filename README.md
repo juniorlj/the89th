@@ -2,7 +2,7 @@
 
 Private Mac VST effect-plugin. Dual-channel pitch-shifting delay, modelled on a 1978 French studio box.
 
-**Status:** Phase 0. VST3 + Standalone, Apple Silicon. Version `0.0.1`.
+**Status:** clone of the original's signal path complete, as far as the published record allows. VST3 + Standalone, Apple Silicon. Version `0.0.1`.
 
 ## Build
 
@@ -24,9 +24,16 @@ Needs CMake, Ninja, and Apple clang. JUCE and Catch2 download on first configure
 
 ## Controls
 
-Pitch · Crosspoint 1 · Crosspoint 2 · Feedback · Mix · Bandwidth · Freeze · Init
+**Global:** Mode (Delay / Pitch) · Stereo (True / Quasi) · Range (Long / Short) · Bandwidth (5 / 10 / 20 kHz) · Freeze · Mix · Init
 
-Crosspoint 1 deeper than Crosspoint 2 plays the region in reverse. Feedback runs through the pitch shifter. Bandwidth changes the converter clock (octave jumps on switch). 20 kHz is unavailable in true stereo.
+**Per channel, L and R:** Delay · Pitch · Crosspoint 1 · Crosspoint 2 · Feedback · Vibrato depth · Vibrato speed
+
+- **Delay mode:** a fixed delay per channel, with pre/de-emphasis. **Pitch mode:** the heads move through the crosspoint region at the pitch ratio.
+- Crosspoint 1 deeper than Crosspoint 2 plays the region in reverse.
+- Feedback runs through the pitch shifter, so repeats climb or fall.
+- Bandwidth changes the converter clock, so switching it jumps the pitch by octaves. 20 kHz needs Quasi-stereo.
+- Freeze latches both channels and keeps looping the region.
+- Delay and crosspoints read in ms, which change with bandwidth, stereo and range.
 
 ## Layout
 
@@ -40,33 +47,21 @@ docs/          design notes and hardware research
 
 Start with [`docs/what-this-is.md`](docs/what-this-is.md) for the plain-English picture.
 
-## Not correct yet
+## How close it is
 
-The architecture matches the original (fixed write head, two reads, delay-domain reverse, clocked bandwidth). These parts are already in the path but do not behave like the hardware:
+[`docs/clone-status.md`](docs/clone-status.md) goes through every behaviour and marks it as matching, derived from published numbers, assumed, or not modelled.
 
-- **Splice** — fixed length, fixed timing. The original picks join points from the signal (Xing / autocorrelation) so the cut lands where the waveform already matches. Ours always jumps on schedule. Clean, less musical.
-- **Low bandwidth** — no anti-alias or reconstruction filters. At 5 kHz a 440 Hz tone comes back with a loud image around 12.8 kHz. The original rings there; we alias.
-- **Memory format** — full float into RAM. The original stores ≈13-bit flying-comma words (gain-ranged). Error should track level; ours is too clean.
-- **Crossfade** — digital equal-power cosine/sine. The original used analog VCAs at the jump. Level handoff is right; the grain is not.
-- **Host ↔ internal rate** — linear lerp resampler. The hardware A/D–D/A path is a different animal once the filters and converter land.
-- **Feedback headroom** — no converter clip. Push feedback and we sail past full scale. The original hit its own converter and folded.
-- **Stereo controls** — one knob set drives both channels. The hardware has independent pitch, crosspoints, and freeze per side (DSP already allows it; the UI does not).
-- **Routing** — true stereo only. Quasi-stereo (shared input, full 16,384-word memory, 20 kHz) is not wired. At max clock the original also merged the two returns into feedback; we keep L/R separate.
-- **Pitch input** — ratio knob only. The original also took a TTL pitch clock (≈26–212 kHz) and a rear CV/remote set.
-- **Later-unit extras** — no vibrato depth/speed, no short/long memory range switch.
+Short version:
 
-## Todo — full replication
+- **Matches or derived:** the two-head crosspoint mechanism, reverse, freeze, feedback through the pitch shifter, the clock-based bandwidth switch and its octave jumps, the 16,384 × 13-bit RAM, true and quasi stereo, delay and pitch modes, emphasis, the short range, the flying-comma converter and its clip, word-by-word reading, and the +0/−3 dB band edges.
+- **Assumed:** the filter type, the emphasis curve, how Xing picks its join points, the crossfade curve, and the vibrato ranges. Each is a named constant, so it's easy to change.
+- **Not modelled:** the rear-panel control interface (TTL pitch clock, CV, insert loop) and the KB 2000.
 
-- [ ] Flying-comma converter (≈13-bit gain-ranging store)
-- [ ] Anti-alias and reconstruction filters (ringing, not aliasing)
-- [ ] Xing — signal-informed splice points and adaptive fade length
-- [ ] Pre / de-emphasis in delay mode (bypassed in pitch mode)
-- [ ] Quasi-stereo routing + merged high-rate feedback path
-- [ ] Per-channel UI (left/right already separate in the engine)
-- [ ] Vibrato / LFO / random position scrub
-- [ ] External pitch clock + MIDI / keyboard companion layer
-- [ ] Real GUI (generic editor is temporary)
-- [ ] Converter-style output clip on the feedback/write path
+Nothing has been compared against a working unit yet. Recordings from one would settle most of the assumptions.
+
+## Next
+
+Modern features, as designed in [`docs/phase1-design.md`](docs/phase1-design.md): custom GUI, presets, tempo sync, feedback tone, motion. Each one is neutral by default, so the clone underneath stays intact.
 
 ## Git
 
