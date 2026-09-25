@@ -19,8 +19,7 @@ juce_add_plugin(the89th_plugin
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    # In-place install below — JUCE's default wipe-and-replace breaks FL's
-    # "plugin updated, reload wrapper" detection on macOS.
+    # Installed by the in-place rsync below instead of JUCE's wipe-and-replace.
     COPY_PLUGIN_AFTER_BUILD     FALSE
 )
 
@@ -68,9 +67,15 @@ target_link_libraries(the89th_plugin
         juce::juce_recommended_warning_flags
 )
 
-# Install without deleting the destination bundle first. FL Studio notices the
-# binary change and offers to reload the wrapper (gear → Reload plugin) — that
-# is the live-edit loop, not quitting FL or wiping the plugin database.
+# Install without deleting the destination bundle first, so the bundle path stays
+# stable. rsync writes a new file and renames it over the old one, which is safe
+# while a host has the previous build loaded.
+#
+# A running host cannot pick up the new build. Measured: once macOS has loaded
+# this image into a process it stays resident after the host unloads it, and a
+# later load returns the old image even though the file on disk has a new UUID.
+# Rescan, "Reload plugin" and remove/re-add all hand back the first build.
+# Quit and reopen the host, or iterate DSP in the Standalone (run_the89th).
 if(APPLE)
     set(_vst3_install_dir "$ENV{HOME}/Library/Audio/Plug-Ins/VST3/THE89TH.vst3")
     add_custom_command(TARGET the89th_plugin_VST3 POST_BUILD
@@ -79,7 +84,7 @@ if(APPLE)
             "-DDEST=${_vst3_install_dir}"
             -P "${CMAKE_SOURCE_DIR}/cmake/InstallVst3InPlace.cmake"
         COMMAND ${CMAKE_COMMAND} -E echo
-            "THE89TH: installed. In FL, reload the wrapper (gear → Reload plugin), or accept the update prompt. Confirm via the build stamp."
+            "THE89TH: installed. A running host keeps the build it already loaded: quit and reopen FL to hear this one. Check the build stamp in the editor."
         VERBATIM
     )
 endif()

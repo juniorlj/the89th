@@ -20,6 +20,8 @@ ctest --test-dir build --output-on-failure
 
 Needs CMake, Ninja, and Apple clang. JUCE and Catch2 download on first configure.
 
+**Rebuilding while FL is open:** FL keeps the build it loaded first until you quit it. Rescanning, "Reload plugin" and re-adding the plugin all return the old code, because macOS keeps the plugin image resident in the process. Quit and reopen FL after a rebuild, and check the build stamp at the top of the editor. For fast DSP iteration without a host, `cmake --build build --target run_the89th` rebuilds and restarts the Standalone app.
+
 ## Controls
 
 Pitch · Crosspoint 1 · Crosspoint 2 · Feedback · Mix · Bandwidth · Freeze · Init
