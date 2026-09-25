@@ -111,6 +111,6 @@ private:
     float           feedbackState_ = 0.0f;
 };
 
-using DefaultChannelEngine = ChannelEngine<CatmullRom, NoQuantiser>;
+using DefaultChannelEngine = ChannelEngine<CatmullRom, FlyingComma>;
 
 } // namespace the89th
