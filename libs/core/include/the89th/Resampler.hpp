@@ -121,6 +121,10 @@ public:
 
     void prepare (double hostRate, double internalRateHz)
     {
+        // Build the kernel table here, off the audio thread. Left lazy, the
+        // first audio block paid for it: measured at 86% of a 128-sample block.
+        (void) SincKernel::instance();
+
         hostRate_ = hostRate > 0.0 ? hostRate : 48000.0;
         for (auto& r : in_)  r.assign (static_cast<std::size_t> (kRingSize), 0.0f);
         for (auto& r : out_) r.assign (static_cast<std::size_t> (kRingSize), 0.0f);

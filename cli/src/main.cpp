@@ -20,6 +20,7 @@ struct Options
     the89th::EngineParams params {};
     int  blockSize = 512;
     bool freezeAfterFill = false;
+    bool xing = true;
 };
 
 void usage()
@@ -27,6 +28,13 @@ void usage()
     std::fprintf (stderr,
         "the89th-render - headless renderer\n\n"
         "  the89th-render <in.wav> <out.wav> [options]\n\n"
+        "  --mode <m>        delay or pitch                       (default pitch)\n"
+        "  --stereo <s>      true or quasi                        (default true)\n"
+        "  --range <r>       long or short                        (default long)\n"
+        "  --delay <v>       delay-mode delay, 0 to 1             (default 0.5)\n"
+        "  --vibrato <st>    vibrato depth in semitones, 0 to 2   (default 0)\n"
+        "  --vib-rate <hz>   vibrato speed                        (default 5)\n"
+        "  --no-xing         fixed splices, for A/B against Xing\n"
         "  --pitch <r>       pitch ratio magnitude, 0.25 to 2.0   (default 1.0)\n"
         "  --xp1 <v>         crosspoint 1, 0 to 1                 (default 0.0)\n"
         "  --xp2 <v>         crosspoint 2, 0 to 1                 (default 1.0)\n"
@@ -37,7 +45,8 @@ void usage()
         "  --freeze-after    latch once the input has played through\n"
         "  --block <n>       host block size                      (default 512)\n\n"
         "Crosspoint 1 deeper than crosspoint 2 plays the region in reverse.\n"
-        "20 kHz is unreachable in true stereo and falls back to 10 kHz.\n");
+        "20 kHz needs quasi-stereo; in true stereo it falls back to 10 kHz.\n"
+        "All channel options set both channels.\n");
 }
 
 bool parseDouble (const char* s, double& out)
@@ -116,6 +125,37 @@ bool parse (int argc, char** argv, Options& o)
             else if (v == 20.0) o.params.bandwidth = the89th::Bandwidth::k20kHz;
             else { std::fprintf (stderr, "the89th-render: --bandwidth must be 5, 10 or 20\n"); return false; }
         }
+        else if (a == "--delay")
+        {
+            if (! takeValue()) return false;
+            L.delay = R.delay = v;
+        }
+        else if (a == "--vibrato")
+        {
+            if (! takeValue()) return false;
+            L.vibratoDepth = R.vibratoDepth = v;
+        }
+        else if (a == "--vib-rate")
+        {
+            if (! takeValue()) return false;
+            L.vibratoRate = R.vibratoRate = v;
+        }
+        else if (a == "--mode" || a == "--stereo" || a == "--range")
+        {
+            if (! hasValue) { std::fprintf (stderr, "the89th-render: %s needs a value\n", a.c_str()); return false; }
+            const std::string w = argv[++i];
+            if      (a == "--mode"   && w == "delay") o.params.mode   = the89th::Mode::Delay;
+            else if (a == "--mode"   && w == "pitch") o.params.mode   = the89th::Mode::Pitch;
+            else if (a == "--stereo" && w == "true")  o.params.stereo = the89th::StereoMode::True;
+            else if (a == "--stereo" && w == "quasi") o.params.stereo = the89th::StereoMode::Quasi;
+            else if (a == "--range"  && w == "long")  o.params.range  = the89th::DelayRange::Long;
+            else if (a == "--range"  && w == "short") o.params.range  = the89th::DelayRange::Short;
+            else { std::fprintf (stderr, "the89th-render: bad value '%s' for %s\n", w.c_str(), a.c_str()); return false; }
+        }
+        else if (a == "--no-xing")
+        {
+            o.xing = false;
+        }
         else if (a == "--freeze")
         {
             L.freeze = R.freeze = true;
@@ -185,6 +225,7 @@ int main (int argc, char** argv)
 
     the89th::Engine engine;
     engine.prepare (static_cast<double> (sampleRate), o.blockSize);
+    engine.setXing (o.xing);
     engine.setParams (o.params);
 
     // A tail so freeze and feedback have somewhere to sound.
@@ -244,19 +285,25 @@ int main (int argc, char** argv)
     drwav_write_pcm_frames (&out, static_cast<drwav_uint64> (total), interleaved.data());
     drwav_uninit (&out);
 
-    const the89th::Spec spec {};
+    const auto& m = engine.machine();
+    const bool delayMode = o.params.mode == the89th::Mode::Delay;
     std::fprintf (stderr,
         "the89th-render: %d frames in, %d out at %u Hz\n"
-        "  pitch %.4f  xp1 %.3f  xp2 %.3f  %s\n"
-        "  bandwidth %s requested, %s effective, internal %.1f Hz\n"
-        "  feedback %.2f  mix %.2f  memory %d words/channel\n",
+        "  %s mode, %s, %s range, Xing %s\n"
+        "  pitch %.4f  xp1 %.3f  xp2 %.3f  %s  delay %.3f  vibrato %.2f st @ %.2f Hz\n"
+        "  bandwidth %s requested, %s effective, internal %.1f Hz, %d words per side\n"
+        "  feedback %.2f  mix %.2f\n",
         frames, total, sampleRate,
+        delayMode ? "delay" : "pitch",
+        m.quasi() ? "quasi-stereo" : "true stereo",
+        o.params.range == the89th::DelayRange::Short ? "short" : "long",
+        o.xing ? "on" : "off",
         o.params.left.pitchRatio, o.params.left.crosspoint1, o.params.left.crosspoint2,
         o.params.left.crosspoint1 > o.params.left.crosspoint2 ? "reverse" : "forward",
-        bandwidthName (o.params.bandwidth),
-        bandwidthName (spec.effectiveBandwidth (o.params.bandwidth)),
-        engine.machine().internalSampleRate(),
-        o.params.left.feedback, o.params.mix, spec.memoryWordsPerChannel());
+        o.params.left.delay, o.params.left.vibratoDepth, o.params.left.vibratoRate,
+        bandwidthName (o.params.bandwidth), bandwidthName (m.effectiveBandwidth()),
+        m.internalSampleRate(), m.wordsPerVoice(),
+        o.params.left.feedback, o.params.mix);
 
     return 0;
 }

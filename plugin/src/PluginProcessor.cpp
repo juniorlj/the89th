@@ -11,6 +11,19 @@ juce::String ratioToText (float v, int)
     const auto semis = 12.0f * std::log2 (v);
     return juce::String (v, 3) + "x  (" + juce::String (semis, 2) + " st)";
 }
+
+juce::String msText (double ms)
+{
+    // juce::String (double, 0) means "full precision", not "no decimals".
+    return (ms < 100.0 ? juce::String (ms, 1) : juce::String (juce::roundToInt (ms))) + " ms";
+}
+
+juce::String percentText (float v, int) { return juce::String (juce::roundToInt (v * 100.0f)) + " %"; }
+juce::String semitoneText (float v, int) { return juce::String (v, 2) + " st"; }
+juce::String hertzText (float v, int)    { return juce::String (v, v < 1.0f ? 2 : 1) + " Hz"; }
+
+constexpr int kMinDelay = the89th::DelayMemory::kMinDelay;
+constexpr int kEndGuard = the89th::DelayMemory::kEndGuard;
 } // namespace
 
 juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayout()
@@ -25,41 +38,101 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         StringArray { the89th_version::banner() }, 0,
         AudioParameterChoiceAttributes{}.withAutomatable (false)));
 
+    // ─── Global: the hardware's switches ────────────────────────────────────
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::mode, 2 }, "Mode",
+        StringArray { "Delay", "Pitch" }, 1));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::stereo, 2 }, "Stereo",
+        StringArray { "True stereo", "Quasi-stereo" }, 0));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::range, 2 }, "Range",
+        StringArray { "Long", "Short" }, 0));
+
+    // 20 kHz needs the whole converter, so only quasi-stereo reaches it; in true
+    // stereo it falls back to 10 kHz.
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::bandwidth, 1 }, "Bandwidth",
+        StringArray { "5 kHz", "10 kHz", "20 kHz (quasi-stereo)" }, 1));
+
+    // The latch acts on both channels, as on the hardware's rear connector.
+    layout.add (std::make_unique<AudioParameterBool> (
+        ParameterID { pid::freeze, 1 }, "Freeze", false));
+
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { pid::mix, 1 }, "Mix",
+        NormalisableRange<float> (0.0f, 1.0f), 1.0f,
+        AudioParameterFloatAttributes{}.withStringFromValueFunction (percentText)));
+
+    // ─── Per channel ────────────────────────────────────────────────────────
+    // Positions in memory read as milliseconds, which depend on the current
+    // bandwidth, stereo layout and range, so the text functions ask the
+    // processor rather than bake in one clock.
+    auto crosspointMs = [this] (float v, int)
+    {
+        const double words = static_cast<double> (readout_.words.load() - kEndGuard - kMinDelay);
+        return msText ((kMinDelay + v * words) * readout_.msPerWord.load());
+    };
+
+    auto delayMs = [this] (float v, int)
+    {
+        const double full = static_cast<double> (readout_.words.load() - kEndGuard - kMinDelay);
+        const double span = readout_.shortRange.load() ? full / 10.0 : full;
+        return msText ((kMinDelay + v * span) * readout_.msPerWord.load());
+    };
+
     // 0.25 to 2.0 is the hardware's span: two octaves down to one up. Skewed so
     // unity sits mid-travel rather than three quarters of the way along.
     auto pitchRange = NormalisableRange<float> (0.25f, 2.0f);
     pitchRange.setSkewForCentre (1.0f);
 
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { pid::pitch, 1 }, "Pitch",
-        pitchRange, 1.0f,
-        AudioParameterFloatAttributes{}.withStringFromValueFunction (ratioToText)));
+    for (int c = 0; c < 2; ++c)
+    {
+        const auto& id  = pid::channel[c];
+        const String side = c == 0 ? "L " : "R ";
+        // Left keeps the Phase 0 IDs and versions; everything new is version 2.
+        const int v = c == 0 ? 1 : 2;
 
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { pid::crosspoint1, 1 }, "Crosspoint 1",
-        NormalisableRange<float> (0.0f, 1.0f), 0.0f));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.delay, 2 }, side + "Delay",
+            NormalisableRange<float> (0.0f, 1.0f), 0.5f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (delayMs)));
 
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { pid::crosspoint2, 1 }, "Crosspoint 2",
-        NormalisableRange<float> (0.0f, 1.0f), 1.0f));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.pitch, v }, side + "Pitch",
+            pitchRange, 1.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (ratioToText)));
 
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { pid::feedback, 1 }, "Feedback",
-        NormalisableRange<float> (0.0f, 0.99f), 0.0f));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.crosspoint1, v }, side + "Crosspoint 1",
+            NormalisableRange<float> (0.0f, 1.0f), 0.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (crosspointMs)));
 
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { pid::mix, 1 }, "Mix",
-        NormalisableRange<float> (0.0f, 1.0f), 1.0f));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.crosspoint2, v }, side + "Crosspoint 2",
+            NormalisableRange<float> (0.0f, 1.0f), 1.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (crosspointMs)));
 
-    // Three positions because the front-panel switch has three, even though
-    // true stereo cannot reach the widest one: the converter is shared, so each
-    // channel only gets half the clock.
-    layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::bandwidth, 1 }, "Bandwidth",
-        StringArray { "5 kHz", "10 kHz", "20 kHz (mono only)" }, 1));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.feedback, v }, side + "Feedback",
+            NormalisableRange<float> (0.0f, 0.99f), 0.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (percentText)));
 
-    layout.add (std::make_unique<AudioParameterBool> (
-        ParameterID { pid::freeze, 1 }, "Freeze", false));
+        // Depth and speed ranges are not published; later units had both pots.
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.vibratoDepth, 2 }, side + "Vibrato depth",
+            NormalisableRange<float> (0.0f, 2.0f), 0.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (semitoneText)));
+
+        auto rateRange = NormalisableRange<float> (0.1f, 10.0f);
+        rateRange.setSkewForCentre (2.0f);
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.vibratoRate, 2 }, side + "Vibrato speed",
+            rateRange, 5.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (hertzText)));
+    }
 
     layout.add (std::make_unique<AudioParameterBool> (
         ParameterID { pid::init, 1 }, "Init", false));
@@ -73,15 +146,28 @@ The89thProcessor::The89thProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "THE89TH", createLayout())
 {
-    pitch_     = apvts.getRawParameterValue (pid::pitch);
-    xp1_       = apvts.getRawParameterValue (pid::crosspoint1);
-    xp2_       = apvts.getRawParameterValue (pid::crosspoint2);
-    feedback_  = apvts.getRawParameterValue (pid::feedback);
-    mix_       = apvts.getRawParameterValue (pid::mix);
+    for (int c = 0; c < 2; ++c)
+    {
+        const auto& id = pid::channel[c];
+        auto& raw = ch_[static_cast<std::size_t> (c)];
+        raw.delay    = apvts.getRawParameterValue (id.delay);
+        raw.pitch    = apvts.getRawParameterValue (id.pitch);
+        raw.xp1      = apvts.getRawParameterValue (id.crosspoint1);
+        raw.xp2      = apvts.getRawParameterValue (id.crosspoint2);
+        raw.feedback = apvts.getRawParameterValue (id.feedback);
+        raw.vibDepth = apvts.getRawParameterValue (id.vibratoDepth);
+        raw.vibRate  = apvts.getRawParameterValue (id.vibratoRate);
+    }
+
+    mode_      = apvts.getRawParameterValue (pid::mode);
+    stereo_    = apvts.getRawParameterValue (pid::stereo);
+    range_     = apvts.getRawParameterValue (pid::range);
     bandwidth_ = apvts.getRawParameterValue (pid::bandwidth);
     freeze_    = apvts.getRawParameterValue (pid::freeze);
+    mix_       = apvts.getRawParameterValue (pid::mix);
 
     apvts.addParameterListener (pid::init, this);
+    updateReadout();
 }
 
 The89thProcessor::~The89thProcessor()
@@ -125,6 +211,7 @@ void The89thProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     engine_.prepare (sampleRate, samplesPerBlock);
     engine_.setParams (readParams());
     engine_.reset();
+    updateReadout();
 
     // Conversion latency only. The delay the engine imposes is the effect.
     setLatencySamples (static_cast<int> (std::ceil (engine_.latencySamples())));
@@ -142,24 +229,49 @@ bool The89thProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 
 the89th::EngineParams The89thProcessor::readParams() const
 {
-    the89th::ChannelParams c;
-    c.pitchRatio  = pitch_    != nullptr ? pitch_->load()    : 1.0f;
-    c.crosspoint1 = xp1_      != nullptr ? xp1_->load()      : 0.0f;
-    c.crosspoint2 = xp2_      != nullptr ? xp2_->load()      : 1.0f;
-    c.feedback    = feedback_ != nullptr ? feedback_->load() : 0.0f;
-    c.freeze      = freeze_   != nullptr && freeze_->load() > 0.5f;
+    auto get = [] (std::atomic<float>* a, float fallback) { return a != nullptr ? a->load() : fallback; };
+
+    const bool latched = get (freeze_, 0.0f) > 0.5f;
 
     the89th::EngineParams p;
-    p.left  = c;
-    p.right = c;
-    p.mix   = mix_ != nullptr ? mix_->load() : 1.0f;
+    the89th::ChannelParams* out[2] = { &p.left, &p.right };
 
-    const int bw = bandwidth_ != nullptr ? static_cast<int> (bandwidth_->load()) : 1;
+    for (std::size_t c = 0; c < 2; ++c)
+    {
+        const auto& raw = ch_[c];
+        auto& cp = *out[c];
+        cp.delay        = get (raw.delay, 0.5f);
+        cp.pitchRatio   = get (raw.pitch, 1.0f);
+        cp.crosspoint1  = get (raw.xp1, 0.0f);
+        cp.crosspoint2  = get (raw.xp2, 1.0f);
+        cp.feedback     = get (raw.feedback, 0.0f);
+        cp.vibratoDepth = get (raw.vibDepth, 0.0f);
+        cp.vibratoRate  = get (raw.vibRate, 5.0f);
+        cp.freeze       = latched;
+    }
+
+    p.mode   = get (mode_, 1.0f)   < 0.5f ? the89th::Mode::Delay : the89th::Mode::Pitch;
+    p.stereo = get (stereo_, 0.0f) > 0.5f ? the89th::StereoMode::Quasi : the89th::StereoMode::True;
+    p.range  = get (range_, 0.0f)  > 0.5f ? the89th::DelayRange::Short : the89th::DelayRange::Long;
+    p.mix    = get (mix_, 1.0f);
+
+    const int bw = static_cast<int> (get (bandwidth_, 1.0f));
     p.bandwidth = bw == 0 ? the89th::Bandwidth::k5kHz
                 : bw == 2 ? the89th::Bandwidth::k20kHz
                           : the89th::Bandwidth::k10kHz;
 
     return p;
+}
+
+void The89thProcessor::updateReadout()
+{
+    const auto p = readParams();
+    the89th::Spec spec;
+    spec.channels = p.stereo == the89th::StereoMode::Quasi ? 1 : 2;
+
+    readout_.words.store (spec.memoryWordsPerChannel());
+    readout_.msPerWord.store (1000.0 / the89th::internalRate (spec, p.bandwidth));
+    readout_.shortRange.store (p.range == the89th::DelayRange::Short);
 }
 
 void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
@@ -173,6 +285,8 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         engine_.reset();
 
     engine_.setParams (readParams());
+    updateReadout();
+
     engine_.process (buffer.getArrayOfWritePointers(),
                      buffer.getNumChannels(),
                      buffer.getNumSamples());

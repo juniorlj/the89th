@@ -8,14 +8,41 @@ using Catch::Approx;
 
 namespace
 {
-const char* kMusical[] = { pid::pitch, pid::crosspoint1, pid::crosspoint2,
-                           pid::feedback, pid::mix, pid::bandwidth, pid::freeze };
-
 void pumpMessageThread (int ms = 200)
 {
     juce::MessageManager::getInstance()->runDispatchLoopUntil (ms);
 }
+
+/** Every parameter Init is responsible for: all of them but Init and Build. */
+std::vector<juce::RangedAudioParameter*> resettable (The89thProcessor& p)
+{
+    std::vector<juce::RangedAudioParameter*> out;
+    for (auto* raw : p.getParameters())
+        if (auto* r = dynamic_cast<juce::RangedAudioParameter*> (raw))
+            if (r->paramID != pid::init && r->paramID != pid::build)
+                out.push_back (r);
+    return out;
+}
 } // namespace
+
+TEST_CASE ("the panel matches the hardware's controls", "[plugin]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+
+    for (const char* id : { pid::mode, pid::stereo, pid::range, pid::bandwidth, pid::freeze, pid::mix })
+    {
+        INFO (id);
+        REQUIRE (p.apvts.getParameter (id) != nullptr);
+    }
+    for (const auto& ch : pid::channel)
+        for (const char* id : { ch.delay, ch.pitch, ch.crosspoint1, ch.crosspoint2,
+                                ch.feedback, ch.vibratoDepth, ch.vibratoRate })
+        {
+            INFO (id);
+            REQUIRE (p.apvts.getParameter (id) != nullptr);
+        }
+}
 
 TEST_CASE ("Init puts every parameter back to its default", "[plugin]")
 {
@@ -24,34 +51,49 @@ TEST_CASE ("Init puts every parameter back to its default", "[plugin]")
     The89thProcessor p;
     p.prepareToPlay (48000.0, 512);
 
-    auto param = [&] (const char* id) { return p.apvts.getParameter (id); };
+    const auto params = resettable (p);
+    REQUIRE (params.size() >= 20);
 
     // Move everything somewhere that is not its default.
-    param (pid::pitch)->setValueNotifyingHost (0.9f);
-    param (pid::crosspoint1)->setValueNotifyingHost (0.7f);
-    param (pid::crosspoint2)->setValueNotifyingHost (0.2f);
-    param (pid::feedback)->setValueNotifyingHost (0.6f);
-    param (pid::mix)->setValueNotifyingHost (0.3f);
-    param (pid::bandwidth)->setValueNotifyingHost (0.0f);
-    param (pid::freeze)->setValueNotifyingHost (1.0f);
+    for (auto* param : params)
+        param->setValueNotifyingHost (param->getDefaultValue() < 0.5f ? 0.9f : 0.1f);
 
-    for (auto* id : kMusical)
+    for (auto* param : params)
     {
-        INFO (id);
-        REQUIRE (param (id)->getValue() != Approx (param (id)->getDefaultValue()));
+        INFO (param->paramID);
+        REQUIRE (param->getValue() != Approx (param->getDefaultValue()));
     }
 
-    param (pid::init)->setValueNotifyingHost (1.0f);
+    p.apvts.getParameter (pid::init)->setValueNotifyingHost (1.0f);
     pumpMessageThread();
 
-    for (auto* id : kMusical)
+    for (auto* param : params)
     {
-        INFO (id);
-        REQUIRE (param (id)->getValue() == Approx (param (id)->getDefaultValue()));
+        INFO (param->paramID);
+        REQUIRE (param->getValue() == Approx (param->getDefaultValue()));
     }
 
     // Init is momentary: it has to clear itself or it reads as a latched state.
-    REQUIRE (param (pid::init)->getValue() == Approx (0.0f));
+    REQUIRE (p.apvts.getParameter (pid::init)->getValue() == Approx (0.0f));
+}
+
+TEST_CASE ("crosspoints read in milliseconds that follow the clock", "[plugin]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    auto* xp2 = p.apvts.getParameter (pid::crosspoint2);
+
+    // True stereo at 10 kHz: 8189 words at 26455 Hz is 309.5 ms.
+    REQUIRE (xp2->getText (1.0f, 32) == "310 ms");
+
+    // 5 kHz halves the clock, so the same position is twice as long.
+    p.apvts.getParameter (pid::bandwidth)->setValueNotifyingHost (0.0f);
+    juce::AudioBuffer<float> b (2, 64);
+    juce::MidiBuffer m;
+    p.prepareToPlay (48000.0, 64);
+    b.clear();
+    p.processBlock (b, m);
+    REQUIRE (xp2->getText (1.0f, 32) == "619 ms");
 }
 
 TEST_CASE ("Init clears the delay memory too", "[plugin]")
