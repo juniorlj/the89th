@@ -101,6 +101,24 @@ inline double estimateFreq (const float* x, int n, double sampleRate,
     return sampleRate / estimatePeriod (x, n, std::max (2, minLag), maxLag);
 }
 
+/** Amplitude of one frequency in x, by Goertzel with a Hann window. Returns the
+    peak amplitude a sine of that frequency would need to produce the same bin. */
+inline double toneAmplitude (const float* x, int n, double freqHz, double sampleRate)
+{
+    const double w = 2.0 * M_PI * freqHz / sampleRate;
+    double re = 0.0, im = 0.0, wsum = 0.0;
+    for (int i = 0; i < n; ++i)
+    {
+        const double hann = 0.5 - 0.5 * std::cos (2.0 * M_PI * i / (n - 1));
+        re += hann * x[i] * std::cos (w * i);
+        im -= hann * x[i] * std::sin (w * i);
+        wsum += hann;
+    }
+    return 2.0 * std::sqrt (re * re + im * im) / wsum;
+}
+
+inline double toDb (double ratio) { return 20.0 * std::log10 (std::max (ratio, 1e-12)); }
+
 inline float maxAbsDelta (const float* x, int from, int to)
 {
     float m = 0.0f;

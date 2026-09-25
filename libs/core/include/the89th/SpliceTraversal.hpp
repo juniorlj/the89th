@@ -94,11 +94,40 @@ public:
     {
         needsPlacement_ = true;
         fadePos_        = -1;
+        launched_       = false;
         primary_ = secondary_ = entryBound();
     }
 
+    /** Put the head at a specific delay, for handing over from the fixed delay
+        head when the latch engages in delay mode: the read position carries
+        straight across, so nothing jumps. */
+    void placeAt (double delay) noexcept
+    {
+        primary_ = secondary_ = std::clamp (delay, lo_, hi_);
+        fadePos_        = -1;
+        launched_       = false;
+        needsPlacement_ = false;
+    }
+
+    /** True for the one sample on which a splice began. The voice uses it to
+        move the incoming head to a better-matching spot before it is heard. */
+    bool justLaunched() const noexcept { return launched_; }
+
+    /** Nudge the incoming head. Only meaningful right after a launch. */
+    void shiftIncoming (double delta) noexcept { secondary_ += delta; }
+
+    /** Curve blend for the fade: 0 gives equal power, 1 gives equal gain. */
+    void setFadeShape (float correlation) noexcept
+    {
+        shape_ = correlation < 0.0f ? 0.0f : (correlation > 1.0f ? 1.0f : correlation);
+    }
+
+    int    activeFade() const noexcept { return activeFade_; }
+    double primaryDelay() const noexcept { return primary_; }
+
     void advance() noexcept
     {
+        launched_ = false;
         primary_ += step_;
 
         // The standby head only moves while it is being faded in. Letting it
@@ -151,6 +180,7 @@ public:
             // region by that same travel.
             secondary_ = wrapped (primary_) + activeFade_ * step_;
             fadePos_   = 0;
+            launched_  = true;
         }
     }
 
@@ -217,11 +247,16 @@ private:
         return static_cast<int> (std::min (static_cast<double> (crossfade_), byRegion));
     }
 
+    /** Equal power suits uncorrelated material and equal gain suits matched
+        material; summing two in-phase heads at equal power bumps the level by
+        3 dB. The shape blends between them by how well the join matched. */
     float fadeGain (bool outgoing) const noexcept
     {
         constexpr float kHalfPi = 1.57079632679489662f;
-        const float t = static_cast<float> (fadePos_) / static_cast<float> (activeFade_);
-        return outgoing ? std::cos (t * kHalfPi) : std::sin (t * kHalfPi);
+        const float t  = static_cast<float> (fadePos_) / static_cast<float> (activeFade_);
+        const float u  = outgoing ? 1.0f - t : t;
+        const float ep = std::sin (u * kHalfPi);
+        return (1.0f - shape_) * ep + shape_ * u;
     }
 
     double xp1_ = 0.0, xp2_ = 0.0;
@@ -238,6 +273,8 @@ private:
     int  activeFade_ = 96;
     int  fadePos_    = -1;  // -1 when not splicing
     bool needsPlacement_ = true;
+    bool launched_   = false;
+    float shape_     = 0.0f;
 };
 
 } // namespace the89th

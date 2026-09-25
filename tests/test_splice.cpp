@@ -28,9 +28,13 @@ struct Run
     int splices = 0;
 };
 
+/** The splice itself, isolated: smooth reads and no converter, so any step
+    larger than the tone's own slope can only come from the join. The machine
+    as built reads whole words, which adds its own steps; that is tested
+    separately below. */
 Run render (double ratio, bool reverse, int n = 120000)
 {
-    DefaultChannelEngine eng;
+    ChannelEngine<CatmullRom, NoQuantiser> eng;
     eng.prepare (Spec {});
 
     ChannelParams p;
@@ -97,12 +101,14 @@ TEST_CASE ("the splice produces no sample discontinuity", "[splice]")
 TEST_CASE ("a splice without a crossfade is measurably worse", "[splice]")
 {
     // Guards the test itself: if a zero-length fade also passed, the threshold
-    // would be proving nothing.
+    // would be proving nothing. Xing off, because Xing makes even a one-sample
+    // splice clean on a steady tone, which is its own test.
     Spec spec;
     spec.crossfadeSamples = 1;
 
     DefaultChannelEngine eng;
     eng.prepare (spec);
+    eng.setXing (false);
 
     ChannelParams p;
     p.pitchRatio  = 2.0;
@@ -120,6 +126,42 @@ TEST_CASE ("a splice without a crossfade is measurably worse", "[splice]")
     const double bound   = 2.0 * naturalDelta (2.0 * kF0, kAmp);
 
     REQUIRE (static_cast<double> (observed) > bound);
+}
+
+TEST_CASE ("splices add nothing on top of stepped reads", "[splice]")
+{
+    // The machine as built reads whole words, so a moving head repeats or skips
+    // them and the output carries steps of its own. The claim here: the join
+    // makes no step larger than the ones the reading already makes elsewhere.
+    for (double ratio : { 0.25, 0.5, 1.5, 2.0 })
+    {
+        DefaultChannelEngine eng;
+        eng.prepare (Spec {});
+        ChannelParams p;
+        p.pitchRatio  = ratio;
+        p.crosspoint1 = 0.0;
+        p.crosspoint2 = 1.0;
+        eng.setParams (p);
+        eng.reset();
+
+        const int n = 150000;
+        const auto in = test_support::sine (n, kF0, kFs, kAmp);
+        float inside = 0.0f, outside = 0.0f, prev = 0.0f;
+        for (int i = 0; i < n; ++i)
+        {
+            const float y = eng.processSample (in[static_cast<std::size_t> (i)]);
+            if (i > 20000)
+            {
+                const float d = std::fabs (y - prev);
+                (eng.traversal().splicing() ? inside : outside) = std::max (eng.traversal().splicing() ? inside : outside, d);
+            }
+            prev = y;
+        }
+
+        INFO ("ratio " << ratio << ": largest step in splices " << inside << ", elsewhere " << outside);
+        REQUIRE (inside > 0.0f);
+        REQUIRE (inside <= 1.05f * outside);
+    }
 }
 
 TEST_CASE ("the crossfade holds level across the splice", "[splice]")

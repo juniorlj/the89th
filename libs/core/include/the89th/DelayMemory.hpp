@@ -29,6 +29,16 @@ public:
         writeIndex_ = 0;
     }
 
+    /** Change the logical size within what setSize allocated, without touching
+        the heap. Used when true/quasi stereo repartitions the RAM mid-stream.
+        Clears, because repartitioned memory holds nothing meaningful. */
+    void setWords (int words) noexcept
+    {
+        words_ = std::clamp (words, 32, capacity_);
+        mask_  = nextPowerOfTwo (words_) - 1;
+        clear();
+    }
+
     void clear() noexcept
     {
         std::fill (buffer_.begin(), buffer_.end(), 0.0f);
@@ -67,6 +77,12 @@ public:
         const double lo = static_cast<double> (kMinDelay);
         const double hi = static_cast<double> (words_ - kEndGuard);
         return d < lo ? lo : (d > hi ? hi : d);
+    }
+
+    /** Stored word at an integer delay, no interpolation. For Xing's search. */
+    float atDelay (int delay) const noexcept
+    {
+        return buffer_[static_cast<std::size_t> ((writeIndex_ - 1 - delay) & mask_)];
     }
 
     int   words()      const noexcept { return words_; }

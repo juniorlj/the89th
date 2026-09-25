@@ -255,7 +255,7 @@ int main (int argc, char** argv)
         o.params.left.crosspoint1 > o.params.left.crosspoint2 ? "reverse" : "forward",
         bandwidthName (o.params.bandwidth),
         bandwidthName (spec.effectiveBandwidth (o.params.bandwidth)),
-        engine.channel (0).internalSampleRate(),
+        engine.machine().internalSampleRate(),
         o.params.left.feedback, o.params.mix, spec.memoryWordsPerChannel());
 
     return 0;

@@ -13,6 +13,9 @@ add_executable(the89th_tests
     test_splice.cpp
     test_bandwidth.cpp
     test_converter.cpp
+    test_xing.cpp
+    test_filters.cpp
+    test_machine.cpp
 )
 
 target_link_libraries(the89th_tests PRIVATE

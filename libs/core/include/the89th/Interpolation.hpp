@@ -12,6 +12,22 @@ namespace the89th
     bit-for-bit. That property is what makes the ratio-1.0 delay path
     transparent rather than merely close. */
 
+/** What the hardware does: no interpolation at all.
+
+    The read address comes from a TTL counter clocked at the pitch rate, and the
+    converter takes whatever word that counter points at on each of its own fixed
+    ticks. There is no multiplier anywhere in the design, so a fractional
+    position is simply dropped. Moving heads therefore repeat or skip words,
+    which adds the stepped, aliased grain the low clock settings are known for.
+    A static delay reads exact words, so the delay path stays bit-exact. */
+struct Truncate
+{
+    static float read (const float* buf, int mask, int i1, float) noexcept
+    {
+        return buf[i1 & mask];
+    }
+};
+
 struct Linear
 {
     static float read (const float* buf, int mask, int i1, float frac) noexcept
