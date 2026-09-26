@@ -6,7 +6,77 @@ Architected by juniorljj. Programmed by Cursor, Codex and Claude.
 
 **Status:** the original's signal path is cloned as far as the published record allows, and so is its companion keyboard, played over MIDI. On top sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon; runs in FL Studio and Ableton Live. Version `0.5.0`. The user manual is [`docs/manual/`](docs/manual/index.html).
 
-## Build
+## Install on a Mac
+
+THE89TH is built from source on your own Mac. It takes about ten minutes the first time, most of it downloading. The finished plugin installs itself where FL Studio and Ableton Live look for it.
+
+**You need**
+- A Mac with Apple Silicon (M1 or later) running macOS 11 Big Sur or newer. Intel Macs aren't supported.
+- FL Studio or Ableton Live, or neither: a standalone app is built as well.
+- Access to this GitHub repository, which is private.
+
+**1. Install the build tools.** Open Terminal (Applications › Utilities) and run these one at a time. The first installs Apple's command-line tools; click *Install* in the window that appears and wait for it to finish.
+
+```bash
+xcode-select --install
+```
+
+The second installs [Homebrew](https://brew.sh), the Mac package manager. Skip it if `brew --version` already prints a version.
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Then CMake and Ninja, which drive the build:
+
+```bash
+brew install cmake ninja
+```
+
+**2. Download the code.**
+
+```bash
+git clone https://github.com/juniorlj/the89th.git ~/the89th
+```
+
+**3. Build and install.** The first build downloads JUCE and takes a few minutes; later builds are quick.
+
+```bash
+cd ~/the89th && cmake -S . -B build -G Ninja && cmake --build build
+```
+
+When it ends with `THE89TH: installed`, the plugin is at `~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3`.
+
+**4. Load it in your DAW.**
+- **FL Studio:** *Options › Manage plugins*, click *Find plugins*, then load THE89TH in a mixer insert.
+- **Ableton Live:** *Settings › Plug-Ins*, turn on *Use VST3 Plug-In System Folders*, click *Rescan*, then drag THE89TH from *Plug-Ins* in the browser onto an audio or return track.
+- **No DAW:** open `build/plugin/the89th_plugin_artefacts/RelWithDebInfo/Standalone/THE89TH.app`.
+
+The [user manual](docs/manual/index.html) covers every control, playing it from a MIDI keyboard in both DAWs, and starting-point recipes.
+
+**Updating.** Pull the new code, rebuild, then quit and reopen your DAW. A running DAW keeps the old build in memory, even after a rescan. The Build plate at the top right of the plugin shows which version is loaded.
+
+```bash
+cd ~/the89th && git pull && cmake --build build
+```
+
+**Uninstalling.** Delete the plugin. Your saved presets live in `~/Library/Application Support/THE89TH/Presets`; delete that folder too if you want them gone.
+
+```bash
+rm -rf ~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3
+```
+
+**If it doesn't show up**
+- Check the file exists: `ls ~/Library/Audio/Plug-Ins/VST3/`.
+- In Live, check *Use VST3 Plug-In System Folders* is on and rescan.
+- Quit and reopen the DAW; both keep their plugin list from startup.
+- Copied the plugin from someone else's Mac instead of building it? macOS blocks downloaded plugins that aren't notarized. Clear the download flag, then rescan:
+
+```bash
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3
+```
+
+## Build (for development)
 
 ```bash
 cmake -S . -B build -G Ninja
@@ -17,15 +87,11 @@ ctest --test-dir build --output-on-failure
 | Output | Path |
 |--------|------|
 | VST3 | `~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3` (installed after every build) |
-| Standalone | `build/plugin/.../Standalone/THE89TH.app` |
+| Standalone | `build/plugin/the89th_plugin_artefacts/RelWithDebInfo/Standalone/THE89TH.app` |
 | Renderer | `build/cli/the89th-render` |
 | Interface snapshot | `build/plugin/the89th-snapshot` |
 
-Needs CMake, Ninja and Apple clang. JUCE and Catch2 download on first configure.
-
-**Loading it:** in FL Studio, *Options › Manage plugins › Find plugins*. In Ableton Live, turn on *Settings › Plug-Ins › Use VST3 Plug-In System Folders* and click *Rescan*; Live's scanner reads `~/Library/Audio/Plug-Ins/VST3`.
-
-**Rebuilding while a DAW is open:** FL Studio and Live keep the build they loaded first until you quit them. Rescanning, "Reload plugin" and re-adding the plugin all return the old code, because macOS keeps a loaded plugin in memory. Quit and reopen the DAW after a rebuild, then check the build number in the top-right corner of the panel. For fast iteration without a host, `cmake --build build --target run_the89th` rebuilds and restarts the Standalone app.
+Builds are arm64 only, for macOS 11 and later, and ad-hoc signed. JUCE and Catch2 download on first configure. For fast iteration without a host, `cmake --build build --target run_the89th` rebuilds and restarts the Standalone app.
 
 ## Validate
 

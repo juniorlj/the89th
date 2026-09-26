@@ -86,7 +86,7 @@ if(APPLE)
             "-DDEST=${_vst3_install_dir}"
             -P "${CMAKE_SOURCE_DIR}/cmake/InstallVst3InPlace.cmake"
         COMMAND ${CMAKE_COMMAND} -E echo
-            "THE89TH: installed. A running host keeps the build it already loaded: quit and reopen FL to hear this one. Check the build stamp in the editor."
+            "THE89TH: installed. A running host keeps the build it already loaded: quit and reopen your DAW (FL Studio, Live) to hear this one. Check the build stamp in the editor."
         VERBATIM
     )
 endif()
