@@ -4,6 +4,8 @@
 
 #include <the89th/Engine.hpp>
 
+#include "Telemetry.h"
+
 #include <array>
 
 /** Thin shell over the core engine: parameters in, blocks through, nothing else.
@@ -44,6 +46,9 @@ public:
 
     const the89th::Engine& engine() const noexcept { return engine_; }
 
+    /** Written by the audio thread once per block; read by the editor. */
+    const Telemetry& telemetry() const noexcept { return telemetry_; }
+
 private:
     /** What the millisecond readouts need to know about the machine's current
         layout. Declared before apvts: its text functions read these. */
@@ -62,6 +67,7 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     the89th::EngineParams readParams() const;
     void updateReadout();
+    void publishTelemetry (const juce::AudioBuffer<float>&) noexcept;
 
     /** Init is a momentary control wearing a toggle's clothes, because that is
         all a generic editor offers. Flipping it on hands off to the message
@@ -71,6 +77,7 @@ private:
     void handleAsyncUpdate() override;
 
     the89th::Engine   engine_;
+    Telemetry         telemetry_;
     std::atomic<bool> resetRequested_ { false };
 
     struct ChannelRaw

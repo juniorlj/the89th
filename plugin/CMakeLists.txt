@@ -43,6 +43,9 @@ target_sources(the89th_plugin PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
     src/Version.cpp
+    src/gui/Theme.cpp
+    src/gui/Controls.cpp
+    src/gui/MemoryRing.cpp
 )
 
 target_include_directories(the89th_plugin PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
@@ -52,9 +55,6 @@ target_compile_definitions(the89th_plugin PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    # Permitted under the GPLv3 branch of JUCE's licence, which is the basis
-    # this project builds on: private and never distributed.
-    JUCE_DISPLAY_SPLASH_SCREEN=0
 )
 
 target_link_libraries(the89th_plugin
@@ -120,3 +120,15 @@ if(THE89TH_BUILD_TESTS)
 
     catch_discover_tests(the89th_plugin_tests)
 endif()
+
+# Renders the editor to a PNG without a host, so the GUI can be checked on
+# every build without quitting and reopening FL.
+#   the89th-snapshot out.png [width] [preset]
+add_executable(the89th_snapshot tools/Snapshot.cpp)
+target_link_libraries(the89th_snapshot PRIVATE
+    the89th_plugin
+    the89th::core
+    juce::juce_audio_utils
+    juce::juce_recommended_config_flags
+)
+set_target_properties(the89th_snapshot PROPERTIES OUTPUT_NAME the89th-snapshot)

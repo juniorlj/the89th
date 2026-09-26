@@ -7,8 +7,9 @@ Status: **for review. Paused while the clone was finished, and several items are
 > - Per-side controls for pitch, crosspoints, feedback and delay (part of step 4). The hardware had them.
 > - Vibrato (part of step 7): per channel, sine.
 > - Millisecond readouts for delay and crosspoints (part of step 2).
+> - The custom GUI with live memory rings (step 9), built for the hardware's control set. Modern controls still need a place in it.
 >
-> **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, smoothing, presets and A/B, and the GUI.
+> **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, smoothing, and presets with A/B.
 >
 > **Parameter IDs** below predate the clone work. The plugin now uses `pitch`/`pitch_r` as a ratio (the hardware's control), plus `delay`, `mode`, `stereo`, `range` and the vibrato IDs. Revise section 3 before building.
 

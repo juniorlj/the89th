@@ -158,3 +158,29 @@ TEST_CASE ("the plugin passes audio and stays finite", "[plugin]")
                 REQUIRE (std::isfinite (buffer.getSample (ch, i)));
     }
 }
+
+TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugin][gui]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+
+    std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
+    REQUIRE (ed->getWidth()  == 1100);
+    REQUIRE (ed->getHeight() == 680);
+    REQUIRE (ed->isResizable());
+
+    auto* c = ed->getConstrainer();
+    REQUIRE (c != nullptr);
+    REQUIRE (c->getMinimumWidth() == 880);
+    REQUIRE (c->getMaximumWidth() == 1760);
+
+    // Draw at both ends of the range; a layout that breaks at one size tends to
+    // assert or divide by zero when painted.
+    for (int w : { 880, 1100, 1760 })
+    {
+        ed->setSize (w, w * 680 / 1100);
+        const auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+        REQUIRE (img.getWidth() == w);
+    }
+}

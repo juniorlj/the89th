@@ -35,6 +35,10 @@ Needs CMake, Ninja, and Apple clang. JUCE and Catch2 download on first configure
 - Freeze latches both channels and keeps looping the region.
 - Delay and crosspoints read in ms, which change with bandwidth, stereo and range.
 
+The window opens at 1100 × 680 and resizes from 880 to 1760 wide, keeping its proportions. Each channel has a live memory ring: the RAM drawn as a circle, with the write head sweeping round (amber), the read heads (teal) and the crosspoint region (purple). Splices flash as they happen. Double-click any knob to reset it.
+
+To check the interface without a host: `build/plugin/the89th-snapshot out.png [width] [pitch|delay|freeze|quasi]` renders the editor to a PNG.
+
 ## Layout
 
 ```
@@ -61,7 +65,7 @@ Nothing has been compared against a working unit yet. Recordings from one would 
 
 ## Next
 
-Modern features, as designed in [`docs/phase1-design.md`](docs/phase1-design.md): custom GUI, presets, tempo sync, feedback tone, motion. Each one is neutral by default, so the clone underneath stays intact.
+Modern features, as designed in [`docs/phase1-design.md`](docs/phase1-design.md): presets, tempo sync, feedback tone, motion. Each one is neutral by default, so the clone underneath stays intact.
 
 ## Git
 

@@ -290,6 +290,62 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     engine_.process (buffer.getArrayOfWritePointers(),
                      buffer.getNumChannels(),
                      buffer.getNumSamples());
+
+    publishTelemetry (buffer);
+}
+
+void The89thProcessor::publishTelemetry (const juce::AudioBuffer<float>& buffer) noexcept
+{
+    const auto& m = engine_.machine();
+    const auto& p = m.params();
+    const bool quasi = m.quasi();
+    const double fs = m.internalSampleRate();
+
+    telemetry_.words.store (m.wordsPerVoice());
+    telemetry_.msPerWord.store (static_cast<float> (1000.0 / fs));
+    telemetry_.quasi.store (quasi);
+    telemetry_.frozen.store (p.left.freeze || p.right.freeze);
+    telemetry_.delayMode.store (p.mode == the89th::Mode::Delay);
+
+    for (int c = 0; c < 2; ++c)
+    {
+        const auto ci = static_cast<std::size_t> (c);
+        const auto& mem = m.memory (quasi ? 0 : c);
+        telemetry_.writePos[ci].store (static_cast<float> (mem.writeIndex()) / static_cast<float> (mem.words()));
+
+        const auto& voice = m.voice (c);
+        const auto& trav  = voice.traversal();
+        auto& tv = telemetry_.voice[ci];
+
+        const bool onTrav = voice.onTraversal();
+        tv.traversal.store (onTrav);
+        if (onTrav)
+        {
+            const auto a = trav.primary();
+            const auto b = trav.secondary();
+            tv.primary.store (static_cast<float> (a.delaySamples));
+            tv.gainA.store (a.gain);
+            tv.secondary.store (static_cast<float> (b.delaySamples));
+            tv.gainB.store (b.gain);
+        }
+        else
+        {
+            tv.primary.store (static_cast<float> (voice.delayCurrent()));
+            tv.gainA.store (1.0f);
+            tv.gainB.store (0.0f);
+        }
+
+        tv.regionLo.store (static_cast<float> (trav.regionLo()));
+        tv.regionHi.store (static_cast<float> (trav.regionHi()));
+        tv.splicing.store (trav.splicing());
+        tv.reversed.store (trav.reversed());
+        tv.rate.store (static_cast<float> (trav.signedRate()));
+        tv.match.store (voice.xing().last().correlation);
+        tv.delayMs.store (static_cast<float> (voice.delayTarget() * 1000.0 / fs));
+
+        const int outCh = std::min (c, buffer.getNumChannels() - 1);
+        tv.peak.store (buffer.getNumSamples() > 0 ? buffer.getMagnitude (outCh, 0, buffer.getNumSamples()) : 0.0f);
+    }
 }
 
 juce::AudioProcessorEditor* The89thProcessor::createEditor()
