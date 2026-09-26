@@ -2,7 +2,7 @@
 
 Private Mac VST3 effect plugin. A dual-channel pitch-shifting delay, cloned from a 1978 French studio box.
 
-**Status:** the original's signal path is cloned as far as the published record allows. On top of it sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon. Version `0.0.1`.
+**Status:** the original's signal path is cloned as far as the published record allows. On top of it sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon. Version `0.1.0`.
 
 ## Build
 
