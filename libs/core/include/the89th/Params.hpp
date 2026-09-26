@@ -7,10 +7,11 @@
 namespace the89th
 {
 
-/** The hardware's mode switch (also on the rear connector as "pitch mode",
-    for both channels at once).
+/** Each channel's Delay / Pitch-Shifter buttons. Every photographed panel has
+    a set per side, so the two channels choose their mode independently; the
+    rear connector's "pitch mode" input sets both at once.
 
-    Delay: each channel reads at a fixed delay set by its Delay control, with
+    Delay: the channel reads at a fixed delay set by its Delay control, with
     pre/de-emphasis around the converter.
     Pitch: the read heads traverse the crosspoint region at the pitch ratio,
     emphasis bypassed. */
@@ -63,6 +64,8 @@ enum class ScrubMode
 
 struct ChannelParams
 {
+    Mode mode = Mode::Pitch;
+
     /** Delay mode only. 0..1 over the delay scale, which the range switch sets. */
     double delay = 1.0;
 
@@ -85,7 +88,9 @@ struct ChannelParams
     double vibratoRate  = 5.0;
     VibratoShape vibratoShape = VibratoShape::Sine;
 
-    /** Memory latch: stop writing, keep looping the crosspoint region. */
+    /** Memory latch: stop writing, keep looping the crosspoint region. One
+        button per side on the panel; quasi-stereo has one write, so there
+        either side's latch holds both. */
     bool freeze = false;
 };
 
@@ -94,7 +99,6 @@ struct EngineParams
     ChannelParams left;
     ChannelParams right;
 
-    Mode       mode   = Mode::Pitch;
     StereoMode stereo = StereoMode::True;
     DelayRange range  = DelayRange::Long;
 

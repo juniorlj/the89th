@@ -48,8 +48,8 @@ void MemoryRing::refresh()
     v_.reversed  = tv.reversed.load();
     v_.words     = std::max (1, t_.words.load());
     v_.msPerWord = t_.msPerWord.load();
-    v_.frozen    = t_.frozen.load();
-    v_.delayMode = t_.delayMode.load();
+    v_.frozen    = tv.frozen.load();
+    v_.delayMode = tv.delayMode.load();
     v_.quasi     = t_.quasi.load();
     v_.key       = tv.key.load();
 

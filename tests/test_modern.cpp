@@ -21,10 +21,10 @@ using TestMachine = Machine<CatmullRom, NoQuantiser>;
 EngineParams repeats (FeedbackRoute route)
 {
     EngineParams p;
-    p.mode  = Mode::Delay;
     p.route = route;
     for (auto* c : { &p.left, &p.right })
     {
+        c->mode     = Mode::Delay;
         c->delay    = 0.1;
         c->feedback = 0.8;
     }

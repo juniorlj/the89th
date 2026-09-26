@@ -158,8 +158,8 @@ bool parse (int argc, char** argv, Options& o)
         {
             if (! hasValue) { std::fprintf (stderr, "the89th-render: %s needs a value\n", a.c_str()); return false; }
             const std::string w = argv[++i];
-            if      (a == "--mode"   && w == "delay") o.params.mode   = the89th::Mode::Delay;
-            else if (a == "--mode"   && w == "pitch") o.params.mode   = the89th::Mode::Pitch;
+            if      (a == "--mode"   && w == "delay") L.mode = R.mode = the89th::Mode::Delay;
+            else if (a == "--mode"   && w == "pitch") L.mode = R.mode = the89th::Mode::Pitch;
             else if (a == "--stereo" && w == "true")  o.params.stereo = the89th::StereoMode::True;
             else if (a == "--stereo" && w == "quasi") o.params.stereo = the89th::StereoMode::Quasi;
             else if (a == "--range"  && w == "long")  o.params.range  = the89th::DelayRange::Long;
@@ -351,7 +351,7 @@ int main (int argc, char** argv)
     drwav_uninit (&out);
 
     const auto& m = engine.machine();
-    const bool delayMode = o.params.mode == the89th::Mode::Delay;
+    const bool delayMode = o.params.left.mode == the89th::Mode::Delay;
     std::fprintf (stderr,
         "the89th-render: %d frames in, %d out at %u Hz\n"
         "  %s mode, %s, %s range, Xing %s\n"

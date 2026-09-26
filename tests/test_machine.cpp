@@ -268,6 +268,49 @@ TEST_CASE ("in quasi-stereo the latch holds both sides", "[machine][stereo][free
     REQUIRE (m.voice (1).traversal().step() == Approx (-1.0));
 }
 
+TEST_CASE ("each side has its own mode", "[machine][stereo]")
+{
+    // The panel has Delay and Pitch-Shifter buttons per side: one channel can
+    // echo while the other transposes.
+    DefaultMachine m;
+    m.prepare (Spec {});
+    EngineParams p;
+    p.left.mode        = Mode::Delay;
+    p.left.delay       = 0.1;
+    p.left.pitchRatio  = 1.5;           // ignored: the left side is a delay
+    p.right.mode       = Mode::Pitch;
+    p.right.pitchRatio = 1.5;
+    p.right.crosspoint2 = 0.35;
+    m.setParams (p);
+    m.reset();
+
+    REQUIRE_FALSE (m.voice (0).onTraversal());
+    REQUIRE (m.voice (1).onTraversal());
+
+    const double fs = m.internalSampleRate();
+    const auto tone = test_support::sine (40000, 440.0, fs, 0.8f);
+    const auto out  = runMachine (m, tone, tone);
+
+    const double fl = test_support::estimateFreq (out.l.data() + 20000, 8192, fs, 100.0, 4000.0);
+    const double fr = test_support::estimateFreq (out.r.data() + 20000, 8192, fs, 100.0, 4000.0);
+    REQUIRE (fl == Approx (440.0).epsilon (0.02));
+    REQUIRE (fr == Approx (660.0).epsilon (0.02));
+}
+
+TEST_CASE ("in true stereo each side latches on its own", "[machine][stereo][freeze]")
+{
+    DefaultMachine m;
+    m.prepare (Spec {});
+    EngineParams p;
+    p.right.freeze = true;
+    m.setParams (p);
+
+    REQUIRE_FALSE (m.memory (0).writeHeld());
+    REQUIRE (m.memory (1).writeHeld());
+    REQUIRE (m.voice (0).traversal().step() == Approx (0.0));
+    REQUIRE (m.voice (1).traversal().step() == Approx (-1.0));
+}
+
 TEST_CASE ("switching layout repartitions without reallocating", "[machine][stereo]")
 {
     DefaultMachine m;

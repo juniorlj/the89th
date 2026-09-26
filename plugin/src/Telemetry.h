@@ -24,6 +24,8 @@ struct Telemetry
         std::atomic<bool>  traversal { true };
         std::atomic<bool>  splicing  { false };
         std::atomic<bool>  reversed  { false };
+        std::atomic<bool>  frozen    { false };   // this side's memory is latched
+        std::atomic<bool>  delayMode { false };
     };
 
     std::array<Voice, 2> voice;
@@ -35,6 +37,4 @@ struct Telemetry
     std::atomic<int>   words     { 8192 };
     std::atomic<float> msPerWord { 1000.0f / 26455.0f };
     std::atomic<bool>  quasi     { false };
-    std::atomic<bool>  frozen    { false };
-    std::atomic<bool>  delayMode { false };
 };

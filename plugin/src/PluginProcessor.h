@@ -13,9 +13,9 @@
 
 /** Thin shell over the core engine: parameters in, blocks through, nothing else.
 
-    The controls follow the hardware: global Mode, Stereo, Range, Bandwidth and
-    Freeze (the latch acts on both channels), and per channel Delay, Pitch,
-    Crosspoint 1 and 2, Feedback and Vibrato.
+    The controls follow the hardware: global Stereo, Range and Bandwidth, and
+    per channel Mode, Memory Latch, Delay, Pitch, Crosspoint 1 and 2, Feedback
+    and Vibrato.
 
     The modern controls sit on top, each neutral by default: Link, feedback
     routing and tone, Snap and Fine, Sync, Scrub, vibrato shape. The musical
@@ -96,6 +96,8 @@ private:
 
     struct ChannelRaw
     {
+        std::atomic<float>* mode = nullptr;
+        std::atomic<float>* freeze = nullptr;
         std::atomic<float>* delay = nullptr;
         std::atomic<float>* pitch = nullptr;
         std::atomic<float>* xp1 = nullptr;
@@ -108,11 +110,9 @@ private:
     };
     std::array<ChannelRaw, 2> ch_ {};
 
-    std::atomic<float>* mode_      = nullptr;
     std::atomic<float>* stereo_    = nullptr;
     std::atomic<float>* range_     = nullptr;
     std::atomic<float>* bandwidth_ = nullptr;
-    std::atomic<float>* freeze_    = nullptr;
     std::atomic<float>* mix_       = nullptr;
 
     std::atomic<float>* link_       = nullptr;

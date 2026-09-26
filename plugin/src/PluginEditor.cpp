@@ -13,6 +13,8 @@ constexpr float kChanW  = (1100.0f - 2.0f * kMargin - kGap) / 2.0f;
 
 The89thEditor::ChannelUI::ChannelUI (The89thProcessor& p, int c)
     : display  (p.telemetry(), c, c == 0 ? "CH1" : "CH2"),
+      mode     (p.apvts, pid::channel[c].mode,         "Mode",         { "DELAY", "PITCH" }),
+      latch    (p.apvts, pid::channel[c].freeze,       "Latch", PushButton::Style::Accent),
       delay    (p.apvts, pid::channel[c].delay,        "Delay",        "0",   "MAX"),
       pitch    (p.apvts, pid::channel[c].pitch,        "Pitch",        "-24", "+12"),
       fine     (p.apvts, pid::channel[c].fine,         "Fine"),
@@ -32,18 +34,16 @@ The89thEditor::ChannelUI::ChannelUI (The89thProcessor& p, int c)
 
 std::vector<juce::Component*> The89thEditor::ChannelUI::controls()
 {
-    return { &delay, &pitch, &fine, &xp1, &xp2, &feedback, &vibDepth, &vibRate, &vibShape };
+    return { &mode, &latch, &delay, &pitch, &fine, &xp1, &xp2, &feedback, &vibDepth, &vibRate, &vibShape };
 }
 
 The89thEditor::The89thEditor (The89thProcessor& p)
     : AudioProcessorEditor (p),
       proc_ (p),
       presetBar_  (p.presets),
-      mode_       (p.apvts, pid::mode,       "Mode",      { "DELAY", "PITCH" }),
       stereo_     (p.apvts, pid::stereo,     "Stereo",    { "TRUE", "QUASI" }),
       range_      (p.apvts, pid::range,      "Range",     { "LONG", "SHORT" }),
       bandwidth_  (p.apvts, pid::bandwidth,  "Bandwidth", { "5K", "10K", "20K" }),
-      freeze_     (p.apvts, pid::freeze,     "Freeze", PushButton::Style::Accent),
       init_       (p.apvts, pid::init,       "Init",   PushButton::Style::Plain, true),
       mix_        (p.apvts, pid::mix,        "Mix",    "DRY", "WET"),
       route_      (p.apvts, pid::fbRoute,    "Routing",   { "NORM", "CROSS", "SUM" }),
@@ -61,8 +61,8 @@ The89thEditor::The89thEditor (The89thProcessor& p)
 {
     setLookAndFeel (&lnf_);
 
-    for (auto* c : std::initializer_list<juce::Component*> { &presetBar_, &mode_, &stereo_, &range_, &bandwidth_,
-                                                             &freeze_, &init_, &mix_,
+    for (auto* c : std::initializer_list<juce::Component*> { &presetBar_, &stereo_, &range_, &bandwidth_,
+                                                             &init_, &mix_,
                                                              &route_, &lowCut_, &highCut_, &drive_,
                                                              &snap_, &sync_,
                                                              &scrubDepth_, &scrubRate_, &scrubMode_,
@@ -97,7 +97,6 @@ The89thEditor::~The89thEditor()
 void The89thEditor::refresh()
 {
     const auto& t = proc_.telemetry();
-    const bool traversal = ! t.delayMode.load() || t.frozen.load();
     const bool linked    = proc_.apvts.getRawParameterValue (pid::link)->load() > 0.5f;
 
     presetBar_.refresh();
@@ -106,6 +105,7 @@ void The89thEditor::refresh()
     {
         auto& ui = *ch_[c];
         ui.display.refresh();
+        const bool traversal = ! t.voice[c].delayMode.load() || t.voice[c].frozen.load();
 
         // Fade what the current mode ignores. The latch uses the crosspoints
         // and pitch even in delay mode. Linked, channel 2's own controls are
@@ -194,10 +194,9 @@ void The89thEditor::paint (juce::Graphics& g)
     g.fillRect (R (kMargin, 64, 1100 - 2 * kMargin, 1));
 
     // The machine.
-    section (g, R (kMargin, 84, 562, 94), "SYSTEM");
-    section (g, R (kMargin + 574, 84, 136, 94), "LATCH");
-    section (g, R (kMargin + 722, 84, 110, 94), "OUTPUT");
-    section (g, R (kMargin + 844, 84, 208, 94), "KEYS");
+    section (g, R (kMargin, 84, 434, 94), "SYSTEM");
+    section (g, R (kMargin + 450, 84, 110, 94), "OUTPUT");
+    section (g, R (kMargin + 576, 84, 476, 94), "KEYS");
 
     // Modern controls, all neutral by default.
     section (g, R (kMargin, 198, 460, 94), "FEEDBACK LOOP");
@@ -228,14 +227,12 @@ void The89thEditor::resized()
     presetBar_.setBounds (R (236, 20, 572, 30));
     init_.setBounds (R (1022, 14, 54, 46));
 
-    mode_.setBounds      (R (kMargin + 14,  98, 118, 70));
-    stereo_.setBounds    (R (kMargin + 142, 98, 118, 70));
-    range_.setBounds     (R (kMargin + 270, 98, 118, 70));
-    bandwidth_.setBounds (R (kMargin + 398, 98, 150, 70));
-    freeze_.setBounds    (R (kMargin + 586, 106, 112, 52));
-    mix_.setBounds       (R (kMargin + 730, 92, 94, 84));
-    keys_.setBounds      (R (kMargin + 854, 98, 126, 70));
-    keysRoot_.setBounds  (R (kMargin + 984, 92, 64, 84));
+    stereo_.setBounds    (R (kMargin + 14,  98, 118, 70));
+    range_.setBounds     (R (kMargin + 142, 98, 118, 70));
+    bandwidth_.setBounds (R (kMargin + 270, 98, 150, 70));
+    mix_.setBounds       (R (kMargin + 458, 92, 94, 84));
+    keys_.setBounds      (R (kMargin + 590, 98, 126, 70));
+    keysRoot_.setBounds  (R (kMargin + 724, 92, 64, 84));
 
     // FEEDBACK LOOP
     route_.setBounds   (R (kMargin + 16,  212, 162, 70));
@@ -257,7 +254,14 @@ void The89thEditor::resized()
         const float x = kMargin + static_cast<float> (c) * (kChanW + kGap);
         auto& ui = *ch_[static_cast<std::size_t> (c)];
 
-        ui.display.setBounds (R (x + 16, 328, kChanW - 32, 194));
+        // Mode and latch sit at the panel's outer edges, as on the hardware:
+        // channel 1's on the left, channel 2's on the right.
+        constexpr float kSideW = 104.0f;
+        const float side = c == 0 ? x + 16 : x + kChanW - 16 - kSideW;
+        const float disp = c == 0 ? x + 16 + kSideW + 12 : x + 16;
+        ui.mode.setBounds    (R (side, 340, kSideW, 70));
+        ui.latch.setBounds   (R (side, 432, kSideW, 52));
+        ui.display.setBounds (R (disp, 328, kChanW - 44 - kSideW, 194));
 
         const float colW = (kChanW - 32) / 5.0f;
         Knob* row1[] = { &ui.delay, &ui.pitch, &ui.fine, &ui.xp1, &ui.xp2 };

@@ -18,9 +18,10 @@ class The89thProcessor;
     Laid out on a 1100 x 800 design grid and scaled as a whole. Black ground,
     hairline structure, orange for everything live. Along the top: the name,
     the preset strip with A/B, the build stamp, and Init. Then SYSTEM (the
-    machine's switches), LATCH and OUTPUT. Then the modern row: FEEDBACK LOOP,
-    MUSICAL and SCRUB. Below, one section per channel: its display, then the
-    read controls and the recirculation and vibrato controls. Link sits on
+    machine's shared switches), OUTPUT and KEYS. Then the modern row: FEEDBACK
+    LOOP, MUSICAL and SCRUB. Below, one section per channel: its Mode and
+    Memory Latch at the outer edge, as the hardware has them, its display, then
+    the read controls and the recirculation and vibrato controls. Link sits on
     channel 2's frame, since it is channel 2 that follows.
 
     Controls the current mode ignores fade back rather than hide, so nothing
@@ -50,6 +51,8 @@ private:
         ChannelUI (The89thProcessor&, int channel);
 
         MemoryRing display;
+        ButtonGroup mode;
+        PushButton latch;
         Knob delay, pitch, fine, xp1, xp2, feedback, vibDepth, vibRate;
         ButtonGroup vibShape;
 
@@ -68,8 +71,8 @@ private:
 
     PresetBar presetBar_;
 
-    ButtonGroup mode_, stereo_, range_, bandwidth_;
-    PushButton freeze_, init_;
+    ButtonGroup stereo_, range_, bandwidth_;
+    PushButton init_;
     Knob mix_;
 
     ButtonGroup route_, snap_, scrubMode_;

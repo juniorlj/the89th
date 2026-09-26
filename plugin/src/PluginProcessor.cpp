@@ -41,10 +41,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
 
     // ─── Global: the hardware's switches ────────────────────────────────────
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::mode, 2 }, "Mode",
-        StringArray { "Delay", "Pitch" }, 1));
-
-    layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { pid::stereo, 2 }, "Stereo",
         StringArray { "True stereo", "Quasi-stereo" }, 0));
 
@@ -57,10 +53,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
     layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { pid::bandwidth, 1 }, "Bandwidth",
         StringArray { "5 kHz", "10 kHz", "20 kHz (quasi-stereo)" }, 1));
-
-    // The latch acts on both channels, as on the hardware's rear connector.
-    layout.add (std::make_unique<AudioParameterBool> (
-        ParameterID { pid::freeze, 1 }, "Freeze", false));
 
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { pid::mix, 1 }, "Mix",
@@ -107,6 +99,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         const String side = c == 0 ? "L " : "R ";
         // Left keeps the Phase 0 IDs and versions; everything new is version 2.
         const int v = c == 0 ? 1 : 2;
+
+        // Each side has its own Delay / Pitch-Shifter / Memory Latch buttons.
+        // The left keeps the IDs these had when they were global.
+        layout.add (std::make_unique<AudioParameterChoice> (
+            ParameterID { id.mode, c == 0 ? 2 : 5 }, side + "Mode",
+            StringArray { "Delay", "Pitch" }, 1));
+
+        layout.add (std::make_unique<AudioParameterBool> (
+            ParameterID { id.freeze, c == 0 ? 1 : 5 }, side + "Memory latch", false));
 
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { id.delay, 2 }, side + "Delay",
@@ -249,6 +250,8 @@ The89thProcessor::The89thProcessor()
     {
         const auto& id = pid::channel[c];
         auto& raw = ch_[static_cast<std::size_t> (c)];
+        raw.mode     = apvts.getRawParameterValue (id.mode);
+        raw.freeze   = apvts.getRawParameterValue (id.freeze);
         raw.delay    = apvts.getRawParameterValue (id.delay);
         raw.pitch    = apvts.getRawParameterValue (id.pitch);
         raw.xp1      = apvts.getRawParameterValue (id.crosspoint1);
@@ -260,11 +263,9 @@ The89thProcessor::The89thProcessor()
         raw.vibShape = apvts.getRawParameterValue (id.vibratoShape);
     }
 
-    mode_      = apvts.getRawParameterValue (pid::mode);
     stereo_    = apvts.getRawParameterValue (pid::stereo);
     range_     = apvts.getRawParameterValue (pid::range);
     bandwidth_ = apvts.getRawParameterValue (pid::bandwidth);
-    freeze_    = apvts.getRawParameterValue (pid::freeze);
     mix_       = apvts.getRawParameterValue (pid::mix);
 
     link_       = apvts.getRawParameterValue (pid::link);
@@ -349,7 +350,6 @@ the89th::EngineParams The89thProcessor::readParams() const
     auto get = [] (std::atomic<float>* a, float fallback) { return a != nullptr ? a->load() : fallback; };
     namespace mus = the89th::musical;
 
-    const bool latched = get (freeze_, 0.0f) > 0.5f;
     const bool linked  = get (link_, 0.0f) > 0.5f;
     const bool synced  = readout_.sync.load();
     const auto scale   = static_cast<mus::Scale> (readout_.snap.load());
@@ -375,6 +375,8 @@ the89th::EngineParams The89thProcessor::readParams() const
         // Linked, channel 2 takes every per-channel control from channel 1.
         const auto& raw = ch_[linked ? 0 : c];
         auto& cp = *out[c];
+        cp.mode         = get (raw.mode, 1.0f) < 0.5f ? the89th::Mode::Delay : the89th::Mode::Pitch;
+        cp.freeze       = get (raw.freeze, 0.0f) > 0.5f;
         cp.delay        = get (raw.delay, 0.5f);
         cp.pitchRatio   = mus::pitchRatio (get (raw.pitch, 1.0f), scale, get (raw.fine, 0.0f));
         cp.crosspoint1  = get (raw.xp1, 0.0f);
@@ -384,7 +386,6 @@ the89th::EngineParams The89thProcessor::readParams() const
         cp.vibratoRate  = get (raw.vibRate, 5.0f);
         cp.vibratoShape = get (raw.vibShape, 0.0f) > 0.5f ? the89th::VibratoShape::Square
                                                            : the89th::VibratoShape::Sine;
-        cp.freeze       = latched;
 
         if (synced)
         {
@@ -395,7 +396,6 @@ the89th::EngineParams The89thProcessor::readParams() const
         }
     }
 
-    p.mode   = get (mode_, 1.0f)   < 0.5f ? the89th::Mode::Delay : the89th::Mode::Pitch;
     p.stereo = get (stereo_, 0.0f) > 0.5f ? the89th::StereoMode::Quasi : the89th::StereoMode::True;
     p.range  = get (range_, 0.0f)  > 0.5f ? the89th::DelayRange::Short : the89th::DelayRange::Long;
     p.mix    = get (mix_, 1.0f);
@@ -549,8 +549,6 @@ void The89thProcessor::publishTelemetry (const juce::AudioBuffer<float>& buffer)
     telemetry_.words.store (m.wordsPerVoice());
     telemetry_.msPerWord.store (static_cast<float> (1000.0 / fs));
     telemetry_.quasi.store (quasi);
-    telemetry_.frozen.store (p.left.freeze || p.right.freeze);
-    telemetry_.delayMode.store (p.mode == the89th::Mode::Delay);
 
     for (int c = 0; c < 2; ++c)
     {
@@ -570,6 +568,9 @@ void The89thProcessor::publishTelemetry (const juce::AudioBuffer<float>& buffer)
 
         const bool onTrav = voice.onTraversal();
         tv.traversal.store (onTrav);
+        const auto& cp = c == 0 ? p.left : p.right;
+        tv.delayMode.store (cp.mode == the89th::Mode::Delay);
+        tv.frozen.store (mem.writeHeld());
         if (onTrav)
         {
             const auto a = trav.primary();
@@ -624,6 +625,20 @@ void The89thProcessor::setStateInformation (const void* data, int sizeInBytes)
     const auto presetTree = tree.getChildWithName (PresetManager::kTreeType);
     if (presetTree.isValid())
         tree.removeChild (presetTree, nullptr);
+
+    // Mode and latch were global once, under the left side's IDs. State saved
+    // then has no right-side value: give the right side what the left had.
+    for (const auto& [left, right] : { std::pair { pid::channel[0].mode,   pid::channel[1].mode },
+                                       std::pair { pid::channel[0].freeze, pid::channel[1].freeze } })
+    {
+        const auto old = tree.getChildWithProperty ("id", left);
+        if (old.isValid() && ! tree.getChildWithProperty ("id", right).isValid())
+        {
+            auto copy = old.createCopy();
+            copy.setProperty ("id", right, nullptr);
+            tree.appendChild (copy, nullptr);
+        }
+    }
 
     apvts.replaceState (tree);
 

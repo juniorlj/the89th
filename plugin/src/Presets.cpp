@@ -47,14 +47,14 @@ std::vector<std::pair<juce::String, V>> buildFactory()
         } },
 
         { "Slapback", {
-            { mode, 0.0f },
+            { L.mode, 0.0f }, { R.mode, 0.0f },
             { L.delay, 0.30f }, { R.delay, 0.34f },
             { L.feedback, 0.15f }, { R.feedback, 0.15f },
             { mix, 0.35f },
         } },
 
         { "Doubler", {
-            { mode, 0.0f }, { range, 1.0f },
+            { L.mode, 0.0f }, { R.mode, 0.0f }, { range, 1.0f },
             { L.delay, 0.55f }, { R.delay, 0.8f },
             { L.vibratoDepth, 0.08f }, { L.vibratoRate, 0.7f },
             { R.vibratoDepth, 0.08f }, { R.vibratoRate, 0.9f },
@@ -62,7 +62,7 @@ std::vector<std::pair<juce::String, V>> buildFactory()
         } },
 
         { "Ping-Pong Eighths", {
-            { mode, 0.0f }, { pid::sync, 1.0f }, { fbRoute, 1.0f },
+            { L.mode, 0.0f }, { R.mode, 0.0f }, { pid::sync, 1.0f }, { fbRoute, 1.0f },
             { L.delay, syncKnob (9) }, { R.delay, syncKnob (9) },
             { L.feedback, 0.55f }, { R.feedback, 0.55f },
             { highCut, 6000.0f },
@@ -109,7 +109,7 @@ std::vector<std::pair<juce::String, V>> buildFactory()
         } },
 
         { "Lo-Fi Echo", {
-            { mode, 0.0f }, { bandwidth, 0.0f },
+            { L.mode, 0.0f }, { R.mode, 0.0f }, { bandwidth, 0.0f },
             { L.delay, 0.4f }, { R.delay, 0.45f },
             { L.feedback, 0.5f }, { R.feedback, 0.5f },
             { drive, 0.35f },
@@ -172,8 +172,19 @@ PresetManager::Values PresetManager::capture() const
     return v;
 }
 
-void PresetManager::apply (const Values& values)
+void PresetManager::apply (const Values& given)
 {
+    // Presets saved while Mode and the latch were global carry only the left
+    // side's IDs; the right side takes the same setting.
+    Values values = given;
+    for (int k = 0; k < 2; ++k)
+    {
+        const juce::String left  = k == 0 ? pid::channel[0].mode : pid::channel[0].freeze;
+        const juce::String right = k == 0 ? pid::channel[1].mode : pid::channel[1].freeze;
+        if (values.count (left) != 0 && values.count (right) == 0)
+            values[right] = values[left];
+    }
+
     for (auto* raw : state_.processor.getParameters())
         if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (raw))
         {

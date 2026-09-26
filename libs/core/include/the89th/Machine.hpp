@@ -176,7 +176,7 @@ private:
         for (std::size_t i = 0; i < voices_.size(); ++i)
         {
             voices_[i].setSampleRate (fs);
-            voices_[i].setMode (params_.mode);
+            voices_[i].setMode (ps[i]->mode);
             voices_[i].setRange (params_.range);
             voices_[i].setParams (*ps[i]);
         }

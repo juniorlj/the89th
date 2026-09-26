@@ -36,13 +36,13 @@ TEST_CASE ("the panel matches the hardware's controls", "[plugin]")
     juce::ScopedJuceInitialiser_GUI gui;
     The89thProcessor p;
 
-    for (const char* id : { pid::mode, pid::stereo, pid::range, pid::bandwidth, pid::freeze, pid::mix })
+    for (const char* id : { pid::stereo, pid::range, pid::bandwidth, pid::mix })
     {
         INFO (id);
         REQUIRE (p.apvts.getParameter (id) != nullptr);
     }
     for (const auto& ch : pid::channel)
-        for (const char* id : { ch.delay, ch.pitch, ch.crosspoint1, ch.crosspoint2,
+        for (const char* id : { ch.mode, ch.freeze, ch.delay, ch.pitch, ch.crosspoint1, ch.crosspoint2,
                                 ch.feedback, ch.vibratoDepth, ch.vibratoRate })
         {
             INFO (id);
@@ -323,11 +323,62 @@ TEST_CASE ("sync puts the crosspoints and delay on note values", "[plugin][moder
     REQUIRE (p.apvts.getParameter (pid::channel[0].crosspoint2)->getCurrentValueAsText() == "1/2 > MAX");
 
     // Delay mode follows too.
-    setParam (p, pid::mode, 0.0f);
+    setParam (p, pid::channel[0].mode, 0.0f);
     setParam (p, pid::channel[0].delay, knobFor ("1/16"));
     runBlock (p);
     const double delayMs = p.engine().machine().voice (0).delayTarget() / 26455.0;
     REQUIRE (delayMs == Approx (0.125).margin (1.0 / 26455.0));
+}
+
+// ─── Per-channel mode and latch ─────────────────────────────────────────────
+
+TEST_CASE ("each side has its own mode and latch", "[plugin]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+
+    setParam (p, pid::channel[1].mode, 0.0f);     // right: delay
+    setParam (p, pid::channel[0].freeze, 1.0f);   // left: latched
+    runBlock (p);
+
+    const auto& e = p.engine().params();
+    REQUIRE (e.left.mode  == the89th::Mode::Pitch);
+    REQUIRE (e.right.mode == the89th::Mode::Delay);
+    REQUIRE (e.left.freeze);
+    REQUIRE_FALSE (e.right.freeze);
+    REQUIRE (p.engine().machine().memory (0).writeHeld());
+    REQUIRE_FALSE (p.engine().machine().memory (1).writeHeld());
+}
+
+TEST_CASE ("state from when mode and latch were global sets both sides", "[plugin]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor before;
+    setParam (before, pid::mode, 0.0f);
+    setParam (before, pid::freeze, 1.0f);
+
+    juce::MemoryBlock block;
+    before.getStateInformation (block);
+
+    // Strip the right side's entries, which older state doesn't have.
+    auto xml = juce::AudioProcessor::getXmlFromBinary (block.getData(), static_cast<int> (block.getSize()));
+    REQUIRE (xml != nullptr);
+    for (const char* id : { pid::channel[1].mode, pid::channel[1].freeze })
+        if (auto* child = xml->getChildByAttribute ("id", id))
+            xml->removeChildElement (child, true);
+    juce::MemoryBlock old;
+    juce::AudioProcessor::copyXmlToBinary (*xml, old);
+
+    The89thProcessor after;
+    after.setStateInformation (old.getData(), static_cast<int> (old.getSize()));
+    auto value = [&after] (const char* id)
+    {
+        auto* param = after.apvts.getParameter (id);
+        return param->convertFrom0to1 (param->getValue());
+    };
+    REQUIRE (value (pid::channel[1].mode) < 0.5f);
+    REQUIRE (value (pid::channel[1].freeze) > 0.5f);
 }
 
 // ─── Presets and A/B ────────────────────────────────────────────────────────

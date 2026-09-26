@@ -26,7 +26,7 @@ double throughEngine (double freqHz, Bandwidth bw, Mode mode = Mode::Pitch,
 
     EngineParams p;
     p.bandwidth = bw;
-    p.mode      = mode;
+    p.left.mode = p.right.mode = mode;
     p.left.crosspoint1 = p.right.crosspoint1 = 0.0;
     p.left.crosspoint2 = p.right.crosspoint2 = 0.2;
     p.left.delay       = p.right.delay       = 0.2;
@@ -170,7 +170,7 @@ TEST_CASE ("in delay mode, emphasis pushes converter noise down in the treble", 
         Engine engine;
         engine.prepare (kHost, 512);
         EngineParams p;
-        p.mode = mode;
+        p.left.mode = p.right.mode = mode;
         p.bandwidth = Bandwidth::k10kHz;
         p.left.crosspoint2 = p.right.crosspoint2 = 0.2;
         p.left.delay       = p.right.delay       = 0.2;

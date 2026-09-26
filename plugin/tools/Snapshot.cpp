@@ -95,7 +95,8 @@ int main (int argc, char** argv)
     }
     else if (scene == "delay")
     {
-        set (p, pid::mode, 0.0f);
+        set (p, pid::channel[0].mode, 0.0f);
+        set (p, pid::channel[1].mode, 0.0f);
         set (p, pid::channel[0].delay, 0.35f);
         set (p, pid::channel[1].delay, 0.62f);
         set (p, pid::channel[0].feedback, 0.45f);
@@ -124,7 +125,8 @@ int main (int argc, char** argv)
 
     if (scene == "freeze")
     {
-        set (p, pid::freeze, 1.0f);
+        set (p, pid::channel[0].freeze, 1.0f);
+        set (p, pid::channel[1].freeze, 1.0f);
         runAudio (p, 60, true);
     }
 

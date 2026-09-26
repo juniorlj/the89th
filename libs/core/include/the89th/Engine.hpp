@@ -20,9 +20,9 @@ namespace the89th
 
 /** The machine as a host sees it. Per channel, in signal order:
 
-        in -> [pre-emphasis, delay mode] -> anti-alias filter
+        in -> [pre-emphasis, in delay mode] -> anti-alias filter
            -> down to the internal clock -> Machine -> up to host rate
-           -> reconstruction filter -> [de-emphasis, delay mode] -> mix -> out
+           -> reconstruction filter -> [de-emphasis, in delay mode] -> mix -> out
 
     The filters and emphasis stand in for the analog stages either side of the
     converter, so they run at host rate. The machine runs at its own clock.
@@ -124,7 +124,7 @@ public:
 
     void setParams (const EngineParams& p)
     {
-        const bool emphasisWas = emphasisOn();
+        const std::array<bool, kNumChannels> emphasisWas { emphasisOn (0), emphasisOn (1) };
         params_ = p;
         retarget();
 
@@ -132,9 +132,9 @@ public:
         adapter_.setInternalRate (machine_.internalSampleRate());
         updateFilters();
 
-        if (emphasisOn() != emphasisWas)
-            for (auto& e : emphasis_)
-                e.reset();
+        for (std::size_t ch = 0; ch < kNumChannels; ++ch)
+            if (emphasisOn (ch) != emphasisWas[ch])
+                emphasis_[ch].reset();
     }
 
     void setXing (bool on) noexcept { machine_.setXing (on); }
@@ -166,7 +166,10 @@ public:
     const BandLimitFilter& antiAlias (int ch) const noexcept { return antiAlias_[static_cast<std::size_t> (ch)]; }
 
 private:
-    bool emphasisOn() const noexcept { return params_.mode == Mode::Delay; }
+    bool emphasisOn (std::size_t ch) const noexcept
+    {
+        return (ch == 0 ? params_.left : params_.right).mode == Mode::Delay;
+    }
 
     struct ChannelGlides
     {
@@ -305,7 +308,7 @@ private:
                     gateGain_[ch][i] = static_cast<float> (gates_[ch].advance (1));
         }
 
-        const bool  emph = emphasisOn();
+        const std::array<bool, kNumChannels> emph { emphasisOn (0), emphasisOn (1) };
         const float wetG = static_cast<float> (mix_.current());
         const float dryG = 1.0f - wetG;
 
@@ -318,7 +321,7 @@ private:
             for (std::size_t i = 0; i < len; ++i)
             {
                 float x = dry_[ch][i];
-                if (emph)
+                if (emph[ch])
                     x = emphasis_[ch].pre (x);
                 pre_[ch][i] = antiAlias_[ch].process (x);
             }
@@ -354,7 +357,7 @@ private:
             for (std::size_t i = 0; i < len; ++i)
             {
                 float y = reconstruct_[ch].process (wet_[ch][i]);
-                if (emph)
+                if (emph[ch])
                     y = emphasis_[ch].de (y);
                 y *= gateMoving[ch] ? gateGain_[ch][i] : gateG;
                 const float w = mixGliding ? mixGain_[i] : wetG;
