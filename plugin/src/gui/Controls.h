@@ -75,6 +75,30 @@ private:
     juce::ParameterAttachment attach_;
 };
 
+/** A chip like PushButton's, for editor state rather than a parameter:
+    which page is showing, say. */
+class ChipToggle final : public juce::Component,
+                         public juce::SettableTooltipClient
+{
+public:
+    explicit ChipToggle (const juce::String& legend) : legend_ (legend.toUpperCase())
+    {
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    }
+
+    void setOn (bool on) { on_ = on; repaint(); }
+    bool isOn() const noexcept { return on_; }
+
+    std::function<void (bool)> onChange;
+
+    void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+
+private:
+    juce::String legend_;
+    bool on_ = false;
+};
+
 namespace draw
 {
 /** A small status dot: orange when on, dark when off. */

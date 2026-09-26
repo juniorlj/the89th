@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 namespace the89th
 {
@@ -98,6 +99,7 @@ public:
         fadePos_        = -1;
         launched_       = false;
         pendingLaunch_  = false;
+        restartAfterFade_ = false;
         primary_ = secondary_ = entryBound();
     }
 
@@ -110,7 +112,23 @@ public:
         fadePos_        = -1;
         launched_       = false;
         pendingLaunch_  = false;
+        restartAfterFade_ = false;
         needsPlacement_ = false;
+    }
+
+    /** Start the traversal again from its entry bound, crossfading as any
+        splice does. The keyboard does this on a note's attack and Reverse
+        Synchro on the input's, so a segment begins with the sound rather than
+        wherever the free-running traversal happened to be. A splice already
+        heading there covers it; one heading elsewhere finishes first. */
+    void restart() noexcept
+    {
+        if (fadePos_ >= 0)
+        {
+            restartAfterFade_ = ! (pendingLaunch_ && std::equal_to<double> {} (secondary_, entryBound()));
+            return;
+        }
+        spliceTo (entryBound());
     }
 
     /** True for the one sample on which a splice began. The voice uses it to
@@ -152,6 +170,11 @@ public:
                 // ratchet a little further out on every splice.
                 primary_ = std::clamp (secondary_, lo_, hi_);
                 fadePos_ = -1;
+                if (restartAfterFade_)
+                {
+                    restartAfterFade_ = false;
+                    spliceTo (entryBound());
+                }
             }
             return;
         }
@@ -296,6 +319,7 @@ private:
     bool needsPlacement_ = true;
     bool launched_   = false;
     bool pendingLaunch_ = false;
+    bool restartAfterFade_ = false;
     float shape_     = 0.0f;
 };
 

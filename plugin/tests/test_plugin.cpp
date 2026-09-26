@@ -653,7 +653,7 @@ TEST_CASE ("keys: silent until a key, the key sets the pitch, release latches an
     juce::ScopedJuceInitialiser_GUI gui;
     The89thProcessor p;
     p.prepareToPlay (48000.0, 512);
-    setChoice (p, pid::keys, 1.0f);             // L+R
+    setChoice (p, pid::keys, 3.0f);             // Biphonic: one key plays both sides
     setChoice (p, pid::crosspoint2, 0.15f);     // a short loop, ~46 ms
 
     juce::AudioBuffer<float> b (2, 512);
@@ -693,7 +693,7 @@ TEST_CASE ("keys: a note lands on its own sample, not the next block", "[plugin]
     juce::ScopedJuceInitialiser_GUI gui;
     The89thProcessor p;
     p.prepareToPlay (48000.0, 512);
-    setChoice (p, pid::keys, 1.0f);
+    setChoice (p, pid::keys, 1.0f);             // Left
     setChoice (p, pid::crosspoint2, 0.05f);
 
     juce::AudioBuffer<float> b (2, 512);
@@ -721,7 +721,7 @@ TEST_CASE ("keys: root follows its parameter, and routing picks the channel", "[
     juce::ScopedJuceInitialiser_GUI gui;
     The89thProcessor p;
     p.prepareToPlay (48000.0, 512);
-    setChoice (p, pid::keys, 2.0f);             // Left only
+    setChoice (p, pid::keys, 1.0f);             // Left only
     setChoice (p, pid::keysRoot, 48.0f);        // C2 is unity
     setChoice (p, pid::channel[0].crosspoint2, 0.15f);
     setChoice (p, pid::channel[1].crosspoint2, 0.15f);
@@ -742,4 +742,42 @@ TEST_CASE ("keys: root follows its parameter, and routing picks the channel", "[
     midi.addEvent (juce::MidiMessage::noteOn (1, 48, 1.0f), 0);
     block (p, b, midi, t, true);
     REQUIRE (measureHz (p, t, 40) == Approx (330.0).epsilon (0.03));
+}
+
+TEST_CASE ("the KB 2000's panel reaches the engine", "[plugin][keys]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+
+    setChoice (p, pid::keys, 3.0f);
+    setChoice (p, pid::kbPlay, 1.0f);
+    setChoice (p, pid::kbTrim, -25.0f);
+    setChoice (p, pid::kbSlope, 0.3f);
+    setChoice (p, pid::kbEnv, 1.0f);
+    setChoice (p, pid::kbAttack, 0.2f);
+    setChoice (p, pid::kbVib, 1.0f);
+    setChoice (p, pid::kbVibModDepth, -0.5f);
+    setChoice (p, pid::kbSynchro, 2.0f);
+    setChoice (p, pid::kbSpeed, 0.0f);          // Free
+    setChoice (p, pid::kbReverse, 3.0f);
+    setChoice (p, pid::kbGate, 1.0f);
+    setChoice (p, pid::kbThresh, -40.0f);
+    runBlock (p);
+
+    const auto& k = p.engine().params().keys;
+    REQUIRE (k.channels == the89th::KeyChannels::Biphonic);
+    REQUIRE (k.play == the89th::KeyPlay::Sustain);
+    REQUIRE (k.trimCents == Approx (-25.0));
+    REQUIRE (k.glideSeconds == Approx (0.3).margin (1e-3));
+    REQUIRE (k.envelope);
+    REQUIRE (k.attackSeconds == Approx (0.2).margin (1e-3));
+    REQUIRE (k.vibrato);
+    REQUIRE (k.vibModDepth == Approx (-0.5));
+    REQUIRE (k.memorySynchro == the89th::Sides::Right);
+    REQUIRE (k.speed < 1e-9);
+    REQUIRE (k.reverseSynchro == the89th::Sides::Both);
+    REQUIRE (k.noiseGate);
+    REQUIRE (k.thresholdDb == Approx (-40.0));
+    REQUIRE (p.apvts.getParameter (pid::kbSpeed)->getCurrentValueAsText() == "Free");
 }

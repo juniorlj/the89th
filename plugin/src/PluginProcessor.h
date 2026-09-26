@@ -3,13 +3,13 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <the89th/Engine.hpp>
-#include <the89th/Keys.hpp>
 #include <the89th/Musical.hpp>
 
 #include "Presets.h"
 #include "Telemetry.h"
 
 #include <array>
+#include <cstring>
 
 /** Thin shell over the core engine: parameters in, blocks through, nothing else.
 
@@ -125,14 +125,19 @@ private:
     std::atomic<float>* scrubDepth_ = nullptr;
     std::atomic<float>* scrubRate_  = nullptr;
     std::atomic<float>* scrubMode_  = nullptr;
-    std::atomic<float>* keys_       = nullptr;
-    std::atomic<float>* keysRoot_   = nullptr;
+    /** The KB 2000's controls, by ID. Filled once in the constructor; looked
+        up by a scan, which allocates nothing on the audio thread. */
+    std::array<std::pair<const char*, std::atomic<float>*>, 28> kb_ {};
 
-    /** Keyboard state. Touched only on the audio thread; the editor reads the
-        sounding key through telemetry. */
-    the89th::keys::NoteStack notes_;
-    double bend_ = 0.0;   // semitones
+    std::atomic<float>* kbParam (const char* id) const noexcept
+    {
+        for (const auto& [name, value] : kb_)
+            if (name != nullptr && std::strcmp (name, id) == 0)
+                return value;
+        return nullptr;
+    }
 
+    /** MIDI to the engine's keyboard. Audio thread only. */
     void handleMidi (const juce::MidiMessage&) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thProcessor)

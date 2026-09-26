@@ -24,6 +24,9 @@ class The89thProcessor;
     the read controls and the recirculation and vibrato controls. Link sits on
     channel 2's frame, since it is channel 2 that follows.
 
+    The KB 2000 chip in KEYS swaps the channel sections for the keyboard's own
+    panel: PITCH RATIO, ENVELOPE, VIBRATO, MEMORY SYNCHRO and REVERSE SYNCHRO.
+
     Controls the current mode ignores fade back rather than hide, so nothing
     moves under your hand. */
 class The89thEditor final : public juce::AudioProcessorEditor,
@@ -42,6 +45,9 @@ public:
     /** Pull telemetry and update the live parts. Runs on the timer; exposed so
         the snapshot tool can draw a settled frame without waiting on one. */
     void refresh();
+
+    /** Swap the channel sections for the KB 2000's panel, or back. */
+    void showKeyboardPage (bool);
 
 private:
     void timerCallback() override { refresh(); }
@@ -79,9 +85,33 @@ private:
     Knob lowCut_, highCut_, drive_, scrubDepth_, scrubRate_;
     PushButton sync_, link_;
 
-    ButtonGroup keys_;
+    ButtonGroup keys_, kbPlay_;
     Knob keysRoot_;
+    ChipToggle kbPage_ { "KB 2000" };
     std::array<std::unique_ptr<ChannelUI>, 2> ch_;
+
+    /** The keyboard's page. */
+    struct KeyboardUI
+    {
+        explicit KeyboardUI (The89thProcessor&);
+
+        Knob trim, slope, added;
+        PushButton env;
+        Knob attack, hold, release;
+        PushButton vib;
+        Knob vibRate, vibSharp, vibDepth, modRate, modSharp, modDepth, vibAttack, vibRelease;
+        ButtonGroup synchro;
+        Knob attackPt, returnPt, endPt, speed;
+        ButtonGroup reverse;
+        PushButton gate;
+        Knob thresh, revDelay;
+
+        std::vector<juce::Component*> controls();
+    };
+    KeyboardUI kb_;
+
+    /** Where the synchro display sits, in design units. */
+    static juce::Rectangle<float> synchroBar();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thEditor)
 };

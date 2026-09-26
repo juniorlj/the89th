@@ -129,6 +129,14 @@ public:
         }
     }
 
+    /** Back to the start of the crosspoint region. A fixed delay head has no
+        start to go back to, so this only acts on the traversal. */
+    void restart() noexcept
+    {
+        if (onTraversal_)
+            traversal_.restart();
+    }
+
     bool onTraversal() const noexcept { return onTraversal_; }
     double delayTarget() const noexcept { return delayTarget_; }
     double delayCurrent() const noexcept { return delayCur_; }

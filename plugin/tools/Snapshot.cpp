@@ -3,7 +3,8 @@
 //   the89th-snapshot out.png [width] [scene]
 //
 // Scenes: pitch (default), delay, freeze, quasi, keys (the keyboard holding
-// a fifth above the root), modern (a factory preset
+// a fifth above the root), kb (the KB 2000 page, biphonic, with its
+// sections on), modern (a factory preset
 // using the modern controls, with Link on). Audio is run through the real
 // processor first so the rings show a live state, stopping mid-splice where
 // the scene has splices.
@@ -14,6 +15,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <vector>
 
 namespace
 {
@@ -23,7 +25,7 @@ void set (The89thProcessor& p, const char* id, float value)
     param->setValueNotifyingHost (param->convertTo0to1 (value));
 }
 
-int heldNote = -1;   // the "keys" scene holds this key down
+std::vector<int> heldNotes;   // the keyboard scenes hold these keys down
 
 void runAudio (The89thProcessor& p, int blocks, bool stopMidSplice)
 {
@@ -43,8 +45,9 @@ void runAudio (The89thProcessor& p, int blocks, bool stopMidSplice)
             b.setSample (0, i, x);
             b.setSample (1, i, x);
         }
-        if (heldNote >= 0 && k == 0)
-            midi.addEvent (juce::MidiMessage::noteOn (1, heldNote, 1.0f), 0);
+        if (k == 0)
+            for (int note : heldNotes)
+                midi.addEvent (juce::MidiMessage::noteOn (1, note, 1.0f), 0);
         p.processBlock (b, midi);
         midi.clear();
 
@@ -59,7 +62,7 @@ int main (int argc, char** argv)
 {
     if (argc < 2)
     {
-        std::fprintf (stderr, "usage: the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys]\n");
+        std::fprintf (stderr, "usage: the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys|kb]\n");
         return 1;
     }
 
@@ -78,7 +81,25 @@ int main (int argc, char** argv)
         set (p, pid::keys, 1.0f);
         set (p, pid::channel[0].crosspoint2, 0.4f);
         set (p, pid::channel[1].crosspoint2, 0.4f);
-        heldNote = 67;   // a fifth above the C3 root
+        heldNotes = { 67 };   // a fifth above the C3 root
+        splices = false;
+    }
+    else if (scene == "kb")
+    {
+        set (p, pid::keys, 3.0f);             // biphonic
+        set (p, pid::kbEnv, 1.0f);
+        set (p, pid::kbAttack, 0.08f);
+        set (p, pid::kbVib, 1.0f);
+        set (p, pid::kbVibModDepth, 0.4f);
+        set (p, pid::kbSynchro, 1.0f);        // left
+        set (p, pid::kbAttackPt, 0.2f);
+        set (p, pid::kbReturnPt, 0.4f);
+        set (p, pid::kbEndPt, 0.8f);
+        set (p, pid::kbReverse, 2.0f);        // right
+        set (p, pid::channel[0].crosspoint2, 0.1f);
+        set (p, pid::channel[1].crosspoint1, 0.3f);
+        set (p, pid::channel[1].crosspoint2, 0.05f);
+        heldNotes = { 55, 64 };
         splices = false;
     }
     else if (scene == "modern")
@@ -133,6 +154,8 @@ int main (int argc, char** argv)
     std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
     auto* editor = dynamic_cast<The89thEditor*> (ed.get());
     editor->setSize (width, juce::roundToInt (width * static_cast<double> (The89thEditor::kBaseH) / The89thEditor::kBaseW));
+    if (scene == "kb")
+        editor->showKeyboardPage (true);
     for (int i = 0; i < 3; ++i)
         editor->refresh();
 

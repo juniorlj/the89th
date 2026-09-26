@@ -20,7 +20,8 @@ struct Telemetry
         std::atomic<float> peak      { 0.0f };   // output peak this block
         std::atomic<float> rate      { 1.0f };   // signed read rate: pitch ratio, negative in reverse
         std::atomic<float> delayMs   { 0.0f };   // delay mode: the Delay setting
-        std::atomic<int>   key       { -2 };     // -2 keyboard not driving, -1 no key held, else the note
+        std::atomic<int>   key       { -2 };     // -2 keyboard not playing it, -1 silent, else the note
+        std::atomic<float> synchroPos { -1.0f }; // Memory Synchro reading position 0..1, -1 when off
         std::atomic<bool>  traversal { true };
         std::atomic<bool>  splicing  { false };
         std::atomic<bool>  reversed  { false };

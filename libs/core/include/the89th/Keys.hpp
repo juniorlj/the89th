@@ -9,22 +9,8 @@
 namespace the89th::keys
 {
 
-/** The keyboard companion, as a control layer over the machine.
-
-    The hardware took each channel's pitch from an external clock; connecting
-    one disconnected that channel's Pitch pot, and holding the input high
-    latched the machine and muted its output, which is what a keyboard's
-    note-off did. So:
-
-    - a held key replaces the Pitch knob on the channels it drives;
-    - with no key held, those channels latch and their output mutes.
-
-    Latched and muted, the memory keeps whatever was playing when the last key
-    lifted, so the next key replays it at a new pitch: the machine becomes a
-    playable sampler, which is how it was used.
-
-    Nothing here touches audio. The plugin turns MIDI into these calls and the
-    result into engine parameters. */
+/** Building blocks for the keyboard (Keyboard.hpp): which keys are held, and
+    what ratio a key asks for. Nothing here touches audio. */
 
 /** Held keys, last-note priority. Lifting the newest key falls back to the one
     held before it, as monophonic keyboards do. */
@@ -62,6 +48,12 @@ public:
     int current() const noexcept { return count_ > 0 ? notes_[static_cast<std::size_t> (count_ - 1)] : -1; }
 
     int held() const noexcept { return count_; }
+
+    /** The k-th most recent key still held: 0 is the newest. */
+    int recent (int k) const noexcept
+    {
+        return k >= 0 && k < count_ ? notes_[static_cast<std::size_t> (count_ - 1 - k)] : -1;
+    }
 
 private:
     std::array<int, kCapacity> notes_ {};

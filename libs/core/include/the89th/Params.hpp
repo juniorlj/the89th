@@ -62,6 +62,96 @@ enum class ScrubMode
     Random   // glides to a new random spot each cycle
 };
 
+/** The keyboard's Left / Right / Biphonic switch: which channels it plays.
+    Biphonic is two voices, one per channel. */
+enum class KeyChannels
+{
+    Off,
+    Left,
+    Right,
+    Biphonic
+};
+
+/** Push/Play sounds only while a key is down. Sustain starts the note on the
+    key and lets the envelope decide how long it lasts. */
+enum class KeyPlay
+{
+    PushPlay,
+    Sustain
+};
+
+/** The per-side ON switches of Memory Synchro and Reverse Synchro. */
+enum class Sides
+{
+    Off,
+    Left,
+    Right,
+    Both
+};
+
+constexpr bool onSide (Sides s, int channel) noexcept
+{
+    return s == Sides::Both || (channel == 0 ? s == Sides::Left : s == Sides::Right);
+}
+
+/** The KB 2000, the keyboard controller sold with the machine. Its panel and
+    brochure give the sections and what each does; they give no scales, so
+    every time and range here is a choice (docs/clone-status.md lists them).
+    Everything is off by default, and off is bypassed outright. */
+struct KeyboardParams
+{
+    // Pitch ratio settings. A key replaces the Pitch pots of the channels it
+    // plays, as the machine's external pitch clock did.
+    KeyChannels channels = KeyChannels::Off;
+    KeyPlay     play     = KeyPlay::PushPlay;
+    int    root       = 60;    // the key that plays at unity
+    double trimCents  = 0.0;   // Trimmer: tunes the whole keyboard
+    double glideSeconds = 0.0; // Slope: glissando time from one note to the next
+    double addedDelay = 0.0;   // 0..1: pushes the region deeper, a serial delay
+
+    // Envelope: two generators, one VCA per channel. Off is a plain gate.
+    bool   envelope = false;
+    double attackSeconds  = 0.01;
+    double holdSeconds    = 0.5;   // Sustain mode: how long a note stays up
+    double releaseSeconds = 0.3;
+
+    // Vibrato: three parameters, each moved from its base by a modulator
+    // that each note's attack starts.
+    bool   vibrato = false;
+    double vibRateHz   = 5.0;
+    double vibSharpness = 0.0;     // 0 sine .. 1 near square
+    double vibDepth    = 0.5;      // semitones
+    double vibModRate  = 0.0;      // -1..1: the modulator's pull on each
+    double vibModSharpness = 0.0;
+    double vibModDepth = 0.0;
+    double vibAttackSeconds  = 0.5;
+    double vibReleaseSeconds = 0.5;
+
+    // Memory Synchro: each note starts reading the latched memory at the
+    // attack point, runs to the end point, then loops from the return point
+    // while the note lasts. Positions run 0 (oldest) to 1 (newest) through
+    // the memory. Speed is the reading speed: 1 is as recorded, 0 is Free,
+    // where reading follows the pitch as tape would.
+    Sides  memorySynchro = Sides::Off;
+    double attackPoint = 0.0;
+    double returnPoint = 0.5;
+    double endPoint    = 1.0;
+    double speed       = 1.0;
+
+    // Reverse Synchro: on live input only, each attack in the sound restarts
+    // the traversal, after the added delay, so reversed segments keep the
+    // original's tempo. The noise gate mutes the side below the threshold.
+    Sides  reverseSynchro = Sides::Off;
+    bool   noiseGate = false;
+    double thresholdDb = -30.0;
+    double reverseDelaySeconds = 0.0;
+
+    bool any() const noexcept
+    {
+        return channels != KeyChannels::Off || reverseSynchro != Sides::Off;
+    }
+};
+
 struct ChannelParams
 {
     Mode mode = Mode::Pitch;
@@ -117,19 +207,13 @@ struct EngineParams
     double highCutHz = kHighCutOffHz;
     double drive     = 0.0;  // 0..1
 
-    /** Keyboard layer, per channel. The gate scales that channel's wet output:
-        1 is open, 0 is the hardware's muted note-off. Pitch glide is how long a
-        pitch change takes to land; a keyboard wants 0, as the hardware's pitch
-        clock jumped. Defaults are neutral: open, and the engine's usual glide. */
-    std::array<double, 2> gate              { 1.0, 1.0 };
-    std::array<double, 2> pitchGlideSeconds { kDefaultPitchGlide, kDefaultPitchGlide };
+    KeyboardParams keys;
 
     /** Moves both crosspoints together, as a share of the region's length. */
     double    scrubDepth = 0.0;  // 0..1
     double    scrubRate  = 0.5;  // Hz
     ScrubMode scrubMode  = ScrubMode::Lfo;
 
-    static constexpr double kDefaultPitchGlide = 0.03;
     static constexpr double kLowCutOffHz  = 20.0;
     static constexpr double kHighCutOffHz = 20000.0;
 };

@@ -9,6 +9,7 @@
 
 #include "BandLimit.hpp"
 #include "Glide.hpp"
+#include "Keyboard.hpp"
 #include "Machine.hpp"
 #include "Params.hpp"
 #include "Resampler.hpp"
@@ -50,10 +51,6 @@ public:
         own settings, so a glide climbs in small steps rather than one per block. */
     static constexpr int kGlideChunk = 32;
 
-    /** A keyboard gate opens and closes this fast: quick enough to feel like a
-        key, slow enough not to click. */
-    static constexpr double kGateSeconds = 0.005;
-
     void prepare (double hostSampleRate, int maxBlockSize, const Spec& spec = {})
     {
         hostRate_ = hostSampleRate > 0.0 ? hostSampleRate : 48000.0;
@@ -82,17 +79,13 @@ public:
             emphasis_[ch].design (hostRate_);
         }
         mixGain_.assign (block, 0.0f);
-        for (auto& g : gateGain_)
-            g.assign (block, 0.0f);
+        for (auto& g : keyGain_)
+            g.assign (block, 1.0f);
 
         const int glideLen = static_cast<int> (std::lround (kGlideSeconds * hostRate_));
         forEachGlide ([glideLen] (Glide& g) { g.setLength (glideLen); });
-        const int gateLen = static_cast<int> (std::lround (kGateSeconds * hostRate_));
-        for (auto& g : gates_)
-        {
-            g.setLength (gateLen);
-            g.snap (1.0);  // open until told otherwise
-        }
+        keyboard_.prepare (hostRate_);
+        keyboard_.setParams (params_.keys);
         pitchGlideSet_ = { -1.0, -1.0 };
         primed_ = false;
 
@@ -115,10 +108,10 @@ public:
             std::fill (d.begin(), d.end(), 0.0f);
         dryPos_ = 0;
         forEachGlide ([] (Glide& g) { g.snap (g.target()); });
-        for (auto& g : gates_)
-            g.snap (g.target());
+        keyboard_.reset();
         scrub_.reset();
         scrubPos_ = 0.0;
+        resolve();
         machine_.setParams (glided());
     }
 
@@ -126,6 +119,8 @@ public:
     {
         const std::array<bool, kNumChannels> emphasisWas { emphasisOn (0), emphasisOn (1) };
         params_ = p;
+        keyboard_.setParams (p.keys);
+        resolve();
         retarget();
 
         machine_.setParams (glided());
@@ -138,6 +133,13 @@ public:
     }
 
     void setXing (bool on) noexcept { machine_.setXing (on); }
+
+    // The keyboard, as MIDI arrives. The host splits its block at each event,
+    // so these land between process calls, on the sample they were played.
+    void noteOn  (int note)  noexcept { keyboard_.noteOn (note); }
+    void noteOff (int note)  noexcept { keyboard_.noteOff (note); }
+    void pitchWheel (int v)  noexcept { keyboard_.pitchWheel (v); }
+    void allNotesOff()       noexcept { keyboard_.allNotesOff(); }
 
     void process (float* const* io, int numChannels, int numSamples)
     {
@@ -162,13 +164,17 @@ public:
 
     const DefaultMachine& machine() const noexcept { return machine_; }
     const EngineParams&   params()  const noexcept { return params_; }
+
+    /** What the machine is being asked for once the keyboard has had its say. */
+    const EngineParams&   effective() const noexcept { return effective_; }
+    const Keyboard&       keyboard()  const noexcept { return keyboard_; }
     double                bandEdgeHz() const noexcept { return edgeHz_; }
     const BandLimitFilter& antiAlias (int ch) const noexcept { return antiAlias_[static_cast<std::size_t> (ch)]; }
 
 private:
     bool emphasisOn (std::size_t ch) const noexcept
     {
-        return (ch == 0 ? params_.left : params_.right).mode == Mode::Delay;
+        return (ch == 0 ? effective_.left : effective_.right).mode == Mode::Delay;
     }
 
     struct ChannelGlides
@@ -199,62 +205,73 @@ private:
         for (const auto& g : glides_)
             if (g.pitch.moving() || g.feedback.moving() || g.vibratoDepth.moving())
                 return true;
-        return lowCut_.moving() || highCut_.moving() || drive_.moving() || scrubbing();
+        return lowCut_.moving() || highCut_.moving() || drive_.moving() || scrubbing()
+            || keyboard_.active();
     }
 
     bool scrubbing() const noexcept { return params_.scrubDepth > 0.0; }
 
-    bool gating() const noexcept { return gates_[0].moving() || gates_[1].moving(); }
+    bool gliding() const noexcept { return machineMoving() || mix_.moving(); }
 
-    bool gliding() const noexcept { return machineMoving() || mix_.moving() || gating(); }
+    /** The host's settings with the keyboard's on top. */
+    void resolve() noexcept
+    {
+        effective_ = params_;
+        if (keyboard_.active())
+            keyboard_.apply (effective_);
+    }
 
-    /** Points the glides at params_. The first settings after prepare are where
-        the host starts, not a move, so they land at once. */
+    /** Points the glides at effective_. The first settings after prepare are
+        where the host starts, not a move, so they land at once. */
     void retarget() noexcept
     {
-        const ChannelParams* cs[kNumChannels] = { &params_.left, &params_.right };
+        const ChannelParams* cs[kNumChannels] = { &effective_.left, &effective_.right };
         for (std::size_t ch = 0; ch < kNumChannels; ++ch)
         {
-            // Pitch glide length is per channel and settable: a keyboard wants
-            // its notes to land at once. Only reset it when it changes, so a
+            // A keyboard channel glides between notes for the Slope time,
+            // which can be none. Only reset the length when it changes, so a
             // glide in progress isn't disturbed by the host resending it.
-            const double pg = params_.pitchGlideSeconds[ch];
+            const double pg = keyboard_.drives (static_cast<int> (ch)) ? params_.keys.glideSeconds : kGlideSeconds;
             if (! std::equal_to<double> {} (pg, pitchGlideSet_[ch]))
             {
                 glides_[ch].pitch.setLength (static_cast<int> (std::lround (std::max (pg, 0.0) * hostRate_)));
                 pitchGlideSet_[ch] = pg;
             }
-            gates_[ch].setTarget (params_.gate[ch]);
 
             glides_[ch].pitch.setTarget (std::log2 (std::max (cs[ch]->pitchRatio, 1e-6)));
             glides_[ch].feedback.setTarget (cs[ch]->feedback);
             glides_[ch].vibratoDepth.setTarget (cs[ch]->vibratoDepth);
         }
-        mix_.setTarget (params_.mix);
-        lowCut_.setTarget (std::log2 (std::max (params_.lowCutHz, 1.0)));
-        highCut_.setTarget (std::log2 (std::max (params_.highCutHz, 1.0)));
-        drive_.setTarget (params_.drive);
+        mix_.setTarget (effective_.mix);
+        lowCut_.setTarget (std::log2 (std::max (effective_.lowCutHz, 1.0)));
+        highCut_.setTarget (std::log2 (std::max (effective_.highCutHz, 1.0)));
+        drive_.setTarget (effective_.drive);
 
         if (! primed_)
         {
             forEachGlide ([] (Glide& g) { g.snap (g.target()); });
-            for (auto& g : gates_)
-                g.snap (g.target());
             primed_ = true;
         }
     }
 
-    /** params_ with each gliding control at its current point. A settled control
+    /** effective_ with each gliding control at its current point. A settled control
         passes the host's value straight through, untouched by the octave round
         trip, so settled output is bit-identical to having no glide at all. */
     EngineParams glided() const noexcept
     {
-        EngineParams p = params_;
+        EngineParams p = effective_;
         ChannelParams* cs[kNumChannels] = { &p.left, &p.right };
         for (std::size_t ch = 0; ch < kNumChannels; ++ch)
         {
             const auto& g = glides_[ch];
             if (g.pitch.moving())        cs[ch]->pitchRatio   = std::exp2 (g.pitch.current());
+
+            if (params_.keys.vibrato && keyboard_.drives (static_cast<int> (ch)))
+            {
+                const double vib = keyboard_.vibratoSemitones (static_cast<int> (ch));
+                cs[ch]->pitchRatio = std::clamp (cs[ch]->pitchRatio * std::exp2 (vib / 12.0),
+                                                 musical::kMinRatio, musical::kMaxRatio);
+            }
             if (g.feedback.moving())     cs[ch]->feedback     = g.feedback.current();
             if (g.vibratoDepth.moving()) cs[ch]->vibratoDepth = g.vibratoDepth.current();
 
@@ -280,6 +297,25 @@ private:
     {
         const auto len = static_cast<std::size_t> (numSamples);
 
+        // A mono host feeds the same signal to both sides.
+        const float* src[2] = { io[0], numChannels > 1 ? io[1] : io[0] };
+
+        // The keyboard runs first: its envelopes, synchros and detector decide
+        // this chunk's pitch, latch and region.
+        const bool keys = keyboard_.active();
+        if (keys)
+        {
+            const auto& m = machine_;
+            float* gains[kNumChannels] = { keyGain_[0].data(), keyGain_[1].data() };
+            const double span = static_cast<double> (m.wordsPerVoice() - DelayMemory::kEndGuard - DelayMemory::kMinDelay);
+            keyboard_.process (src, gains, numSamples,
+                               { m.memory (0).writeHeld(), m.memory (m.quasi() ? 0 : 1).writeHeld() },
+                               { m.params().left.pitchRatio, m.params().right.pitchRatio },
+                               m.internalSampleRate(), span);
+            resolve();
+            retarget();
+        }
+
         const bool machineGliding = machineMoving();
         for (auto& g : glides_)
             for (Glide* gl : { &g.pitch, &g.feedback, &g.vibratoDepth })
@@ -291,29 +327,20 @@ private:
         if (machineGliding)
             machine_.setParams (glided());
 
+        if (keys)
+            for (int ch = 0; ch < static_cast<int> (kNumChannels); ++ch)
+                if (keyboard_.takeRestart (ch))
+                    machine_.restart (ch);
+
         // Mix is applied here at host rate, so it can glide per sample.
         const bool mixGliding = mix_.moving();
         if (mixGliding)
             for (std::size_t i = 0; i < len; ++i)
                 mixGain_[i] = static_cast<float> (mix_.advance (1));
 
-        // So is each keyboard gate. A settled gate is a constant, and an open
-        // one is exactly 1, so without a keyboard nothing changes.
-        std::array<bool, kNumChannels> gateMoving {};
-        for (std::size_t ch = 0; ch < kNumChannels; ++ch)
-        {
-            gateMoving[ch] = gates_[ch].moving();
-            if (gateMoving[ch])
-                for (std::size_t i = 0; i < len; ++i)
-                    gateGain_[ch][i] = static_cast<float> (gates_[ch].advance (1));
-        }
-
         const std::array<bool, kNumChannels> emph { emphasisOn (0), emphasisOn (1) };
         const float wetG = static_cast<float> (mix_.current());
         const float dryG = 1.0f - wetG;
-
-        // A mono host feeds the same signal to both sides.
-        const float* src[2] = { io[0], numChannels > 1 ? io[1] : io[0] };
 
         for (std::size_t ch = 0; ch < kNumChannels; ++ch)
         {
@@ -353,13 +380,13 @@ private:
         const auto outs = std::min (static_cast<std::size_t> (numChannels), kNumChannels);
         for (std::size_t ch = 0; ch < outs; ++ch)
         {
-            const float gateG = static_cast<float> (gates_[ch].current());
             for (std::size_t i = 0; i < len; ++i)
             {
                 float y = reconstruct_[ch].process (wet_[ch][i]);
                 if (emph[ch])
                     y = emphasis_[ch].de (y);
-                y *= gateMoving[ch] ? gateGain_[ch][i] : gateG;
+                if (keys)
+                    y *= keyGain_[ch][i];  // the keyboard's VCA, and the gate
                 const float w = mixGliding ? mixGain_[i] : wetG;
                 const float d = mixGliding ? 1.0f - w    : dryG;
                 io[ch][i] = d * dry_[ch][i] + w * y;
@@ -401,8 +428,8 @@ private:
             wet_[ch].assign (need, 0.0f);
         }
         mixGain_.assign (need, 0.0f);
-        for (auto& g : gateGain_)
-            g.assign (need, 0.0f);
+        for (auto& g : keyGain_)
+            g.assign (need, 1.0f);
         maxBlock_ = numSamples;
     }
 
@@ -430,9 +457,11 @@ private:
     Glide lowCut_, highCut_;  // in octaves
     Glide drive_;
     Glide mix_;
-    std::array<Glide, kNumChannels> gates_ {};
-    std::array<std::vector<float>, kNumChannels> gateGain_ {};
+    std::array<std::vector<float>, kNumChannels> keyGain_ {};
     std::array<double, kNumChannels> pitchGlideSet_ { -1.0, -1.0 };
+
+    Keyboard     keyboard_;
+    EngineParams effective_ {};
 
     ScrubLfo scrub_;
     double   scrubPos_ = 0.0;  // -1..1

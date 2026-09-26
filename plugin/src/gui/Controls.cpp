@@ -210,6 +210,27 @@ void PushButton::paint (juce::Graphics& g)
                 juce::Justification::centred);
 }
 
+void ChipToggle::paint (juce::Graphics& g)
+{
+    const auto  r = getLocalBounds().toFloat().reduced (1.0f);
+    const float h = r.getHeight();
+    g.setColour (theme::surface);
+    g.fillRect (r);
+    g.setColour (on_ ? theme::orange : theme::hairHi);
+    g.drawRect (r, 1.0f);
+    draw::dot (g, { r.getX() + h * 0.5f, r.getCentreY() }, h * 0.12f, on_);
+    g.setColour (on_ ? theme::orange : theme::textDim);
+    g.setFont (theme::mono (h * 0.42f, on_));
+    g.drawText (legend_, r.withTrimmedLeft (h * 0.85f).withTrimmedRight (h * 0.2f), juce::Justification::centred);
+}
+
+void ChipToggle::mouseDown (const juce::MouseEvent&)
+{
+    setOn (! on_);
+    if (onChange)
+        onChange (on_);
+}
+
 void PushButton::mouseDown (const juce::MouseEvent&)
 {
     pressed_ = true;

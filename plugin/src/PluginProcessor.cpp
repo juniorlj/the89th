@@ -214,21 +214,85 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         ParameterID { pid::scrubMode, 3 }, "Scrub mode",
         StringArray { "LFO", "Random" }, 0));
 
-    // ─── Keyboard layer ─────────────────────────────────────────────────────
-    // MIDI notes play the pitch, as the KB 2000 did: a held key replaces the
-    // Pitch knob on the channels it drives, and with no key held they latch and
-    // mute, the hardware's note-off. Off leaves the machine exactly as it is.
-    layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::keys, 4 }, "Keys",
-        StringArray { "Off", "L+R", "Left", "Right" }, 0));
+    // ─── The KB 2000 ────────────────────────────────────────────────────────
+    // MIDI plays the keyboard controller sold with the machine, laid out as its
+    // panel: pitch ratio settings, envelope, vibrato, Memory Synchro and
+    // Reverse Synchro. The panel gives no scales, so the ranges here are
+    // choices. Off leaves the machine exactly as it is.
+    auto seconds = [] (float v, int) { return v < 1.0f ? juce::String (juce::roundToInt (v * 1000.0f)) + " ms"
+                                                        : juce::String (v, 2) + " s"; };
+    auto bipolar = [] (float v, int) { return (v > 0.0f ? "+" : "") + juce::String (juce::roundToInt (v * 100.0f)) + " %"; };
+    auto timeRange = [] (float lo, float hi, float centre)
+    {
+        auto r = NormalisableRange<float> (lo, hi);
+        r.setSkewForCentre (centre);
+        return r;
+    };
+    auto addFloat = [&layout] (const char* id, const String& name, NormalisableRange<float> range, float def,
+                               std::function<String (float, int)> text)
+    {
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id, 4 }, name, range, def,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (std::move (text))));
+    };
+    const StringArray sides { "Off", "Left", "Right", "Both" };
 
+    // Pitch ratio settings.
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::keys, 4 }, "KB channels",
+        StringArray { "Off", "Left", "Right", "Biphonic" }, 0));
     layout.add (std::make_unique<AudioParameterInt> (
-        ParameterID { pid::keysRoot, 4 }, "Keys root", 24, 96, 60,
+        ParameterID { pid::keysRoot, 4 }, "KB root", 24, 96, 60,
         AudioParameterIntAttributes{}.withStringFromValueFunction ([] (int n, int)
         {
             // Middle C (60) as C3, the convention Henke's re-creation anchors on.
             return juce::MidiMessage::getMidiNoteName (n, true, true, 3);
         })));
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::kbPlay, 4 }, "KB play", StringArray { "Push/Play", "Sustain" }, 0));
+    addFloat (pid::kbTrim,  "KB trimmer", NormalisableRange<float> (-100.0f, 100.0f), 0.0f, centsText);
+    addFloat (pid::kbSlope, "KB slope", timeRange (0.0f, 2.0f, 0.2f), 0.0f,
+              [] (float v, int) { return v < 0.0005f ? juce::String ("Off") : (v < 1.0f ? juce::String (juce::roundToInt (v * 1000.0f)) + " ms" : juce::String (v, 2) + " s"); });
+    addFloat (pid::kbAdded, "KB added delay", NormalisableRange<float> (0.0f, 1.0f), 0.0f, percentText);
+
+    // Envelope.
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbEnv, 4 }, "KB envelope", false));
+    addFloat (pid::kbAttack,  "KB attack",  timeRange (0.001f, 2.0f, 0.1f), 0.01f, seconds);
+    addFloat (pid::kbHold,    "KB hold",    timeRange (0.0f,   5.0f, 0.5f), 0.5f,  seconds);
+    addFloat (pid::kbRelease, "KB release", timeRange (0.005f, 5.0f, 0.3f), 0.3f,  seconds);
+
+    // Vibrato.
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbVib, 4 }, "KB vibrato", false));
+    addFloat (pid::kbVibRate,  "KB vibrato frequency", timeRange (0.1f, 12.0f, 3.0f), 5.0f, hertzText);
+    addFloat (pid::kbVibSharp, "KB vibrato sharpness", NormalisableRange<float> (0.0f, 1.0f), 0.0f, percentText);
+    addFloat (pid::kbVibDepth, "KB vibrato depth", NormalisableRange<float> (0.0f, 2.0f), 0.5f, semitoneText);
+    addFloat (pid::kbVibModRate,  "KB modulator to frequency", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
+    addFloat (pid::kbVibModSharp, "KB modulator to sharpness", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
+    addFloat (pid::kbVibModDepth, "KB modulator to depth", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
+    addFloat (pid::kbVibAttack,  "KB modulator attack",  timeRange (0.0f, 5.0f, 0.5f), 0.5f, seconds);
+    addFloat (pid::kbVibRelease, "KB modulator release", timeRange (0.0f, 5.0f, 0.5f), 0.5f, seconds);
+
+    // Memory Synchro. Points read as a place in the latched memory, in ms from
+    // its oldest end; speed 0 is Free, reading at the pitch.
+    auto pointText = [this] (float v, int)
+    {
+        return msText (v * static_cast<double> (readout_.words.load()) * readout_.msPerWord.load());
+    };
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::kbSynchro, 4 }, "KB memory synchro", sides, 0));
+    addFloat (pid::kbAttackPt, "KB attack point", NormalisableRange<float> (0.0f, 1.0f), 0.0f, pointText);
+    addFloat (pid::kbReturnPt, "KB return point", NormalisableRange<float> (0.0f, 1.0f), 0.5f, pointText);
+    addFloat (pid::kbEndPt,    "KB end point",    NormalisableRange<float> (0.0f, 1.0f), 1.0f, pointText);
+    addFloat (pid::kbSpeed,    "KB speed", timeRange (0.0f, 2.0f, 1.0f), 1.0f,
+              [] (float v, int) { return v < 0.005f ? juce::String ("Free") : juce::String (v, 2) + "x"; });
+
+    // Reverse Synchro.
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::kbReverse, 4 }, "KB reverse synchro", sides, 0));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbGate, 4 }, "KB noise gate", false));
+    addFloat (pid::kbThresh,   "KB threshold", NormalisableRange<float> (-60.0f, 0.0f), -30.0f,
+              [] (float v, int) { return juce::String (juce::roundToInt (v)) + " dB"; });
+    addFloat (pid::kbRevDelay, "KB added delay (reverse)", timeRange (0.0f, 1.0f, 0.15f), 0.0f, seconds);
 
     // Not automatable: a host automation lane or a "randomise" should never be
     // able to wipe every setting and the memory mid-song. The panel button
@@ -278,8 +342,18 @@ The89thProcessor::The89thProcessor()
     scrubDepth_ = apvts.getRawParameterValue (pid::scrubDepth);
     scrubRate_  = apvts.getRawParameterValue (pid::scrubRate);
     scrubMode_  = apvts.getRawParameterValue (pid::scrubMode);
-    keys_       = apvts.getRawParameterValue (pid::keys);
-    keysRoot_   = apvts.getRawParameterValue (pid::keysRoot);
+    std::size_t kbCount = 0;
+    for (const char* id : { pid::keys, pid::keysRoot, pid::kbPlay, pid::kbTrim, pid::kbSlope, pid::kbAdded,
+                            pid::kbEnv, pid::kbAttack, pid::kbHold, pid::kbRelease,
+                            pid::kbVib, pid::kbVibRate, pid::kbVibSharp, pid::kbVibDepth,
+                            pid::kbVibModRate, pid::kbVibModSharp, pid::kbVibModDepth,
+                            pid::kbVibAttack, pid::kbVibRelease,
+                            pid::kbSynchro, pid::kbAttackPt, pid::kbReturnPt, pid::kbEndPt, pid::kbSpeed,
+                            pid::kbReverse, pid::kbGate, pid::kbThresh, pid::kbRevDelay })
+    {
+        jassert (kbCount < kb_.size());
+        kb_[kbCount++] = { id, apvts.getRawParameterValue (id) };
+    }
 
     apvts.addParameterListener (pid::init, this);
     updateReadout();
@@ -418,35 +492,50 @@ the89th::EngineParams The89thProcessor::readParams() const
     p.scrubRate  = get (scrubRate_, 0.5f);
     p.scrubMode  = get (scrubMode_, 0.0f) > 0.5f ? the89th::ScrubMode::Random : the89th::ScrubMode::Lfo;
 
-    // Keyboard: a held key takes over the Pitch knob, landing at once as the
-    // hardware's pitch clock did; no key held latches and mutes. Fine still
-    // trims the tuning. Channels the keyboard doesn't drive are untouched.
-    const int keys = static_cast<int> (get (keys_, 0.0f));
-    if (keys != 0)
+    // The KB 2000. The engine turns notes into pitch, latch and envelope.
+    auto kb    = [this, &get] (const char* id, float fallback) { return static_cast<double> (get (kbParam (id), fallback)); };
+    auto sideOf = [] (double v)
     {
-        const bool drives[2] = { keys == 1 || keys == 2, keys == 1 || keys == 3 };
-        const int  root = static_cast<int> (get (keysRoot_, 60.0f));
-        for (std::size_t c = 0; c < 2; ++c)
-        {
-            if (! drives[c])
-                continue;
+        const int i = static_cast<int> (v);
+        return i == 1 ? the89th::Sides::Left : i == 2 ? the89th::Sides::Right
+             : i == 3 ? the89th::Sides::Both : the89th::Sides::Off;
+    };
+    auto& k = p.keys;
+    const int chans = static_cast<int> (kb (pid::keys, 0.0f));
+    k.channels = chans == 1 ? the89th::KeyChannels::Left  : chans == 2 ? the89th::KeyChannels::Right
+               : chans == 3 ? the89th::KeyChannels::Biphonic : the89th::KeyChannels::Off;
+    k.play         = kb (pid::kbPlay, 0.0f) > 0.5 ? the89th::KeyPlay::Sustain : the89th::KeyPlay::PushPlay;
+    k.root         = static_cast<int> (kb (pid::keysRoot, 60.0f));
+    k.trimCents    = kb (pid::kbTrim, 0.0f);
+    k.glideSeconds = kb (pid::kbSlope, 0.0f);
+    k.addedDelay   = kb (pid::kbAdded, 0.0f);
 
-            auto& cp = *out[c];
-            p.pitchGlideSeconds[c] = 0.0;
-            if (notes_.active())
-            {
-                const auto& raw = ch_[linked ? 0 : c];
-                cp.pitchRatio = mus::pitchRatio (the89th::keys::ratio (notes_.current(), root, bend_),
-                                                 mus::Scale::Off, get (raw.fine, 0.0f));
-                p.gate[c] = 1.0;
-            }
-            else
-            {
-                cp.freeze = true;
-                p.gate[c] = 0.0;
-            }
-        }
-    }
+    k.envelope       = kb (pid::kbEnv, 0.0f) > 0.5;
+    k.attackSeconds  = kb (pid::kbAttack, 0.01f);
+    k.holdSeconds    = kb (pid::kbHold, 0.5f);
+    k.releaseSeconds = kb (pid::kbRelease, 0.3f);
+
+    k.vibrato         = kb (pid::kbVib, 0.0f) > 0.5;
+    k.vibRateHz       = kb (pid::kbVibRate, 5.0f);
+    k.vibSharpness    = kb (pid::kbVibSharp, 0.0f);
+    k.vibDepth        = kb (pid::kbVibDepth, 0.5f);
+    k.vibModRate      = kb (pid::kbVibModRate, 0.0f);
+    k.vibModSharpness = kb (pid::kbVibModSharp, 0.0f);
+    k.vibModDepth     = kb (pid::kbVibModDepth, 0.0f);
+    k.vibAttackSeconds  = kb (pid::kbVibAttack, 0.5f);
+    k.vibReleaseSeconds = kb (pid::kbVibRelease, 0.5f);
+
+    k.memorySynchro = sideOf (kb (pid::kbSynchro, 0.0f));
+    k.attackPoint   = kb (pid::kbAttackPt, 0.0f);
+    k.returnPoint   = kb (pid::kbReturnPt, 0.5f);
+    k.endPoint      = kb (pid::kbEndPt, 1.0f);
+    const double speed = kb (pid::kbSpeed, 1.0f);
+    k.speed         = speed < 0.005 ? 0.0 : speed;
+
+    k.reverseSynchro      = sideOf (kb (pid::kbReverse, 0.0f));
+    k.noiseGate           = kb (pid::kbGate, 0.0f) > 0.5;
+    k.thresholdDb         = kb (pid::kbThresh, -30.0f);
+    k.reverseDelaySeconds = kb (pid::kbRevDelay, 0.0f);
 
     return p;
 }
@@ -454,13 +543,13 @@ the89th::EngineParams The89thProcessor::readParams() const
 void The89thProcessor::handleMidi (const juce::MidiMessage& m) noexcept
 {
     if (m.isNoteOn())
-        notes_.press (m.getNoteNumber());
+        engine_.noteOn (m.getNoteNumber());
     else if (m.isNoteOff())
-        notes_.release (m.getNoteNumber());
+        engine_.noteOff (m.getNoteNumber());
     else if (m.isPitchWheel())
-        bend_ = the89th::keys::bendSemitones (m.getPitchWheelValue());
+        engine_.pitchWheel (m.getPitchWheelValue());
     else if (m.isAllNotesOff() || m.isAllSoundOff())
-        notes_.clear();
+        engine_.allNotesOff();
 }
 
 void The89thProcessor::updateReadout()
@@ -490,11 +579,7 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         buffer.clear (ch, 0, buffer.getNumSamples());
 
     if (resetRequested_.exchange (false))
-    {
         engine_.reset();
-        notes_.clear();
-        bend_ = 0.0;
-    }
 
     // Sync follows the host's tempo; without a playhead it runs at 120.
     if (auto* head = getPlayHead())
@@ -508,9 +593,14 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     const int chans = buffer.getNumChannels();
     auto* const* io = buffer.getArrayOfWritePointers();
 
-    // With the keyboard on, the block runs in pieces split at each MIDI event,
-    // so a key lands on the sample it was played rather than the next block.
-    const bool keysOn = keys_ != nullptr && keys_->load() > 0.5f;
+    // With the keyboard playing, the block runs in pieces split at each MIDI
+    // event, so a key lands on the sample it was played rather than the next
+    // block. Off, notes still reach the engine so it knows what is held.
+    const bool keysOn = kbParam (pid::keys)->load() > 0.5f;
+    // Settings first, so a note on the block's first sample meets this
+    // block's keyboard rather than the last one's.
+    engine_.setParams (readParams());
+
     int done = 0;
     auto runTo = [&] (int end)
     {
@@ -522,17 +612,11 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         done = end;
     };
 
-    if (keysOn)
+    for (const auto meta : midi)
     {
-        for (const auto meta : midi)
-        {
+        if (keysOn)
             runTo (juce::jlimit (0, n, meta.samplePosition));
-            handleMidi (meta.getMessage());
-        }
-    }
-    else if (notes_.active())
-    {
-        notes_.clear();  // switched off mid-note: nothing stays held
+        handleMidi (meta.getMessage());
     }
     runTo (n);
 
@@ -553,9 +637,11 @@ void The89thProcessor::publishTelemetry (const juce::AudioBuffer<float>& buffer)
     for (int c = 0; c < 2; ++c)
     {
         {
-            const int keys = keys_ != nullptr ? static_cast<int> (keys_->load()) : 0;
-            const bool drives = keys == 1 || (keys == 2 && c == 0) || (keys == 3 && c == 1);
-            telemetry_.voice[static_cast<std::size_t> (c)].key.store (drives ? notes_.current() : -2);
+            const auto& kbd = engine_.keyboard();
+            auto& tv = telemetry_.voice[static_cast<std::size_t> (c)];
+            tv.key.store (kbd.sounding (c));
+            tv.synchroPos.store (the89th::onSide (kbd.params().memorySynchro, c) && kbd.drives (c)
+                                 ? static_cast<float> (kbd.synchroPosition (c)) : -1.0f);
         }
 
         const auto ci = static_cast<std::size_t> (c);

@@ -125,6 +125,8 @@ public:
         state_ = { outL, outR };
     }
 
+    void restart (int channel) noexcept { voices_[static_cast<std::size_t> (channel)].restart(); }
+
     double    internalSampleRate() const noexcept { return internalRate (spec_, params_.bandwidth); }
     Bandwidth effectiveBandwidth() const noexcept { return spec_.effectiveBandwidth (params_.bandwidth); }
     bool      quasi()              const noexcept { return params_.stereo == StereoMode::Quasi; }
