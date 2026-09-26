@@ -6,9 +6,9 @@
 
 #include "Theme.h"
 
-/** A skirted knob over a printed scale, with its legend underneath and small
-    printed end marks. The value shows in a popup while it turns, and is
-    reported through onTouch so the channel display can show it too. */
+/** An encoder with its LED ring, end marks, name, and value always shown in
+    orange underneath. Moves are reported through onTouch so the channel
+    display can echo them. */
 class Knob final : public juce::Component
 {
 public:
@@ -28,8 +28,8 @@ private:
     juce::AudioProcessorValueTreeState::SliderAttachment attach_;
 };
 
-/** A row of square push buttons for one choice parameter, each under its own
-    LED, the group's title printed above. The hardware's switches. */
+/** A segmented selector for one choice parameter: flat outlined segments,
+    the active one filled orange, a status dot above each, title above. */
 class ButtonGroup final : public juce::Component,
                           public juce::SettableTooltipClient
 {
@@ -50,14 +50,14 @@ private:
     juce::ParameterAttachment attach_;
 };
 
-/** One push button with an LED for a bool parameter. The cream style is the
-    panel's single accent, kept for the latch. Momentary buttons (Init) send
-    true and let the processor clear it. */
+/** One button for a bool parameter. Accent (the latch) is outlined orange
+    and fills solid when on; Plain is a hairline button. Momentary buttons
+    (Init) send true and let the processor clear it. */
 class PushButton final : public juce::Component,
                          public juce::SettableTooltipClient
 {
 public:
-    enum class Style { Dark, Cream };
+    enum class Style { Plain, Accent };
 
     PushButton (juce::AudioProcessorValueTreeState&, const juce::String& paramId,
                 const juce::String& legend, Style, bool momentary = false);
@@ -75,9 +75,6 @@ private:
 
 namespace draw
 {
-/** A small LED, lit or dark, with a faint halo when lit. */
-void led (juce::Graphics&, juce::Point<float> centre, float radius, juce::Colour lit, bool on);
-
-/** A square push-button cap. */
-void buttonCap (juce::Graphics&, juce::Rectangle<float>, bool pressed);
+/** A small status dot: orange when on, dark when off. */
+void dot (juce::Graphics&, juce::Point<float> centre, float radius, bool on);
 } // namespace draw

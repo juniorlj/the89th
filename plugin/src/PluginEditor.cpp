@@ -6,8 +6,9 @@
 namespace
 {
 // Design grid, in 1100 x 680 units.
-constexpr float kCheek  = 30.0f;
-constexpr float kMargin = 44.0f;
+constexpr float kMargin = 24.0f;
+constexpr float kGap    = 16.0f;
+constexpr float kChanW  = (1100.0f - 2.0f * kMargin - kGap) / 2.0f;
 } // namespace
 
 The89thEditor::ChannelUI::ChannelUI (The89thProcessor& p, int c)
@@ -34,8 +35,8 @@ The89thEditor::The89thEditor (The89thProcessor& p)
       stereo_    (p.apvts, pid::stereo,    "Stereo",    { "TRUE", "QUASI" }),
       range_     (p.apvts, pid::range,     "Range",     { "LONG", "SHORT" }),
       bandwidth_ (p.apvts, pid::bandwidth, "Bandwidth", { "5K", "10K", "20K" }),
-      freeze_    (p.apvts, pid::freeze,    "Freeze", PushButton::Style::Cream),
-      init_      (p.apvts, pid::init,      "Init",   PushButton::Style::Dark, true),
+      freeze_    (p.apvts, pid::freeze,    "Freeze", PushButton::Style::Accent),
+      init_      (p.apvts, pid::init,      "Init",   PushButton::Style::Plain, true),
       mix_       (p.apvts, pid::mix,       "Mix",    "DRY", "WET")
 {
     setLookAndFeel (&lnf_);
@@ -92,16 +93,16 @@ void The89thEditor::section (juce::Graphics& g, juce::Rectangle<float> r, const 
 {
     const float s = static_cast<float> (getWidth()) / kBaseW;
 
-    g.setColour (theme::rule);
-    g.drawRoundedRectangle (r, 4.0f * s, 1.0f * s);
+    g.setColour (theme::hairline);
+    g.drawRect (r, 1.0f);
 
-    // Title set into the top line: knock out the rule behind it, then print.
-    const auto font = theme::title (15.0f * s);
-    const float tw  = juce::GlyphArrangement::getStringWidth (font, title) + 12.0f * s;
-    const auto  box = juce::Rectangle<float> (r.getX() + 14.0f * s, r.getY() - 8.0f * s, tw, 16.0f * s);
-    g.setColour (theme::panel);
+    // Title in the top-left corner, cut into the line.
+    const auto font = theme::mono (12.0f * s, true);
+    const float tw  = juce::GlyphArrangement::getStringWidth (font, title) + 14.0f * s;
+    const auto  box = juce::Rectangle<float> (r.getX() + 12.0f * s, r.getY() - 8.0f * s, tw, 16.0f * s);
+    g.setColour (theme::bg);
     g.fillRect (box);
-    g.setColour (theme::print);
+    g.setColour (theme::orange);
     g.setFont (font);
     g.drawText (title, box, juce::Justification::centred);
 }
@@ -109,62 +110,17 @@ void The89thEditor::section (juce::Graphics& g, juce::Rectangle<float> r, const 
 void The89thEditor::groupTitle (juce::Graphics& g, juce::Rectangle<float> span, const juce::String& title) const
 {
     const float s = static_cast<float> (getWidth()) / kBaseW;
-    const auto font = theme::title (13.0f * s);
-    const float tw  = juce::GlyphArrangement::getStringWidth (font, title) + 14.0f * s;
+    const auto font = theme::mono (11.0f * s, true);
+    const float tw  = juce::GlyphArrangement::getStringWidth (font, title) + 16.0f * s;
     const float y   = span.getCentreY();
 
-    g.setColour (theme::rule.withMultipliedAlpha (0.7f));
-    g.drawLine (span.getX(), y, span.getCentreX() - tw * 0.5f, y, 1.0f * s);
-    g.drawLine (span.getCentreX() + tw * 0.5f, y, span.getRight(), y, 1.0f * s);
-    // Short end ticks, as silkscreened group brackets have.
-    g.drawLine (span.getX(), y, span.getX(), y + 5.0f * s, 1.0f * s);
-    g.drawLine (span.getRight(), y, span.getRight(), y + 5.0f * s, 1.0f * s);
+    g.setColour (theme::hairline);
+    g.drawLine (span.getX(), y, span.getCentreX() - tw * 0.5f, y, 1.0f);
+    g.drawLine (span.getCentreX() + tw * 0.5f, y, span.getRight(), y, 1.0f);
 
-    g.setColour (theme::print);
+    g.setColour (theme::text);
     g.setFont (font);
     g.drawText (title, span.withSizeKeepingCentre (tw, span.getHeight()), juce::Justification::centred);
-}
-
-void The89thEditor::rebuildWood()
-{
-    const float s = static_cast<float> (getWidth()) / kBaseW;
-    const int w = juce::jmax (1, juce::roundToInt (kCheek * s));
-    const int h = juce::jmax (1, getHeight());
-
-    wood_ = juce::Image (juce::Image::RGB, w, h, true);
-    juce::Graphics g (wood_);
-
-    // Base: warm brown, darker toward both edges where the timber rounds off.
-    juce::ColourGradient base (theme::woodDark, 0.0f, 0.0f, theme::woodDark, static_cast<float> (w), 0.0f, false);
-    base.addColour (0.35, theme::wood);
-    base.addColour (0.65, theme::wood.brighter (0.08f));
-    g.setGradientFill (base);
-    g.fillAll();
-
-    // Grain: long, gently wandering lines, fixed seed so it never shimmers
-    // between repaints or sessions.
-    juce::Random rng (8989);
-    for (int i = 0; i < 90; ++i)
-    {
-        const float x0    = rng.nextFloat() * static_cast<float> (w);
-        const float amp   = (0.4f + rng.nextFloat() * 1.6f) * s;
-        const float freq  = 0.004f + rng.nextFloat() * 0.01f;
-        const float phase = rng.nextFloat() * 6.283f;
-        const bool  dark  = rng.nextFloat() < 0.75f;
-
-        juce::Path grain;
-        grain.startNewSubPath (x0, 0.0f);
-        for (float y = 0.0f; y <= static_cast<float> (h); y += 6.0f)
-            grain.lineTo (x0 + amp * std::sin (y * freq + phase) + amp * 0.3f * std::sin (y * freq * 3.1f), y);
-
-        g.setColour (dark ? theme::woodDark.withAlpha (0.12f + rng.nextFloat() * 0.3f)
-                          : juce::Colour (0xffa07850).withAlpha (0.05f + rng.nextFloat() * 0.12f));
-        g.strokePath (grain, juce::PathStrokeType ((0.4f + rng.nextFloat() * 1.2f) * s));
-    }
-
-    // Lit front edge on the outside, and a varnish sheen.
-    g.setColour (juce::Colours::white.withAlpha (0.06f));
-    g.fillRect (0, 0, juce::jmax (1, w / 6), h);
 }
 
 void The89thEditor::paint (juce::Graphics& g)
@@ -172,73 +128,51 @@ void The89thEditor::paint (juce::Graphics& g)
     const float s = static_cast<float> (getWidth()) / kBaseW;
     auto R = [s] (float x, float y, float w, float h) { return juce::Rectangle<float> (x * s, y * s, w * s, h * s); };
 
-    // Panel, then the cheeks either side with a shadow where they meet it.
-    g.fillAll (theme::panel);
-    if (wood_.isValid())
+    g.fillAll (theme::bg);
+
+    // Name, description, build stamp.
+    g.setColour (theme::text);
+    g.setFont (theme::mono (34.0f * s, true));
+    g.drawText ("THE89TH", R (kMargin, 12, 200, 44), juce::Justification::centredLeft);
+
+    g.setColour (theme::textDim);
+    g.setFont (theme::mono (10.5f * s));
+    g.drawText ("DUAL CHANNEL DIGITAL PITCH TRANSPOSER / DELAY", R (232, 20, 520, 14), juce::Justification::centredLeft);
+    g.drawText ("TRUE AND QUASI STEREO - 16384 WORD MEMORY - FLYING COMMA CONVERTER", R (232, 36, 560, 14),
+                juce::Justification::centredLeft);
+
     {
-        g.drawImageAt (wood_, 0, 0);
-        g.drawImageTransformed (wood_, juce::AffineTransform::scale (-1.0f, 1.0f)
-                                           .translated (static_cast<float> (getWidth()), 0.0f));
-    }
-    g.setColour (juce::Colours::black.withAlpha (0.6f));
-    g.fillRect (R (kCheek, 0, 2, kBaseH));
-    g.fillRect (R (kBaseW - kCheek - 2, 0, 2, kBaseH));
-
-    // Corner screws.
-    for (auto p : { juce::Point<float> (46, 16), juce::Point<float> (1054, 16),
-                    juce::Point<float> (46, 664), juce::Point<float> (1054, 664) })
-    {
-        const auto c = p * s;
-        const float r = 5.0f * s;
-        juce::ColourGradient grad (juce::Colour (0xff5c5c60), c.x, c.y - r, juce::Colour (0xff1c1c1e), c.x, c.y + r, false);
-        g.setGradientFill (grad);
-        g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
-        g.setColour (juce::Colour (0xff0d0d0e));
-        g.drawLine (c.x - r * 0.7f, c.y + r * 0.2f, c.x + r * 0.7f, c.y - r * 0.2f, 1.2f * s);
-    }
-
-    // Name and description.
-    g.setColour (theme::print);
-    g.setFont (theme::title (40.0f * s));
-    g.drawText ("THE89TH", R (66, 14, 190, 42), juce::Justification::centredLeft);
-
-    g.setColour (theme::printDim);
-    g.setFont (theme::legend (11.0f * s));
-    g.drawText ("DUAL CHANNEL DIGITAL PITCH TRANSPOSER  /  DELAY", R (222, 24, 400, 14), juce::Justification::centredLeft);
-    g.drawText ("TRUE AND QUASI STEREO  -  16384 WORD MEMORY  -  FLYING COMMA CONVERTER",
-                R (222, 38, 480, 14), juce::Justification::centredLeft);
-
-    // Serial plate, carrying the build stamp.
-    {
-        const auto plate = R (812, 20, 150, 30);
-        g.setColour (juce::Colour (0xff1b1b1d));
-        g.fillRoundedRectangle (plate, 2.0f * s);
-        g.setColour (theme::rule.withMultipliedAlpha (0.5f));
-        g.drawRoundedRectangle (plate, 2.0f * s, 1.0f * s);
-        g.setColour (theme::printDim);
-        g.setFont (theme::legend (8.5f * s));
-        g.drawText ("SERIAL", plate.withTrimmedLeft (8.0f * s).withHeight (plate.getHeight() * 0.45f).translated (0, 2.0f * s),
+        const auto plate = R (830, 18, 176, 34);
+        g.setColour (theme::hairline);
+        g.drawRect (plate, 1.0f);
+        g.setColour (theme::textFaint);
+        g.setFont (theme::mono (9.0f * s));
+        g.drawText ("BUILD", plate.reduced (10.0f * s, 3.0f * s).withHeight (plate.getHeight() * 0.42f),
                     juce::Justification::centredLeft);
-        g.setColour (theme::print);
-        g.setFont (theme::screen (10.0f * s));
-        g.drawText (the89th_version::banner(), plate.withTrimmedLeft (8.0f * s).withTrimmedTop (plate.getHeight() * 0.42f),
+        g.setColour (theme::orange);
+        g.setFont (theme::mono (11.0f * s, true));
+        g.drawText (the89th_version::banner(), plate.reduced (10.0f * s, 0.0f).withTrimmedTop (plate.getHeight() * 0.40f),
                     juce::Justification::centredLeft);
     }
+
+    // Rule under the header.
+    g.setColour (theme::hairline);
+    g.fillRect (R (kMargin, 64, 1100 - 2 * kMargin, 1));
 
     // Sections.
-    section (g, R (kMargin, 74, 690, 104), "SYSTEM");
-    section (g, R (748, 74, 150, 104), "LATCH");
-    section (g, R (912, 74, 144, 104), "OUTPUT");
+    section (g, R (kMargin, 84, 700, 94), "SYSTEM");
+    section (g, R (kMargin + 716, 84, 170, 94), "LATCH");
+    section (g, R (kMargin + 902, 84, 150, 94), "OUTPUT");
 
-    const juce::String names[2] = { "CHANNEL 1  -  LEFT", "CHANNEL 2  -  RIGHT" };
+    const juce::String names[2] = { "CHANNEL 1 - LEFT", "CHANNEL 2 - RIGHT" };
     for (int c = 0; c < 2; ++c)
     {
-        const float x = c == 0 ? kMargin : 558.0f;
-        section (g, R (x, 194, 498, 470), names[c]);
+        const float x = kMargin + static_cast<float> (c) * (kChanW + kGap);
+        section (g, R (x, 198, kChanW, 466), names[c]);
 
-        groupTitle (g, R (x + 16, 416, 466, 14), "READ");
-        groupTitle (g, R (x + 16, 546, 150, 14), "RECIRCULATE");
-        groupTitle (g, R (x + 190, 546, 292, 14), "VIBRATO");
+        groupTitle (g, R (x + 16, 420, kChanW - 32, 14), "READ");
+        groupTitle (g, R (x + 16, 552, 150, 14), "RECIRCULATE");
+        groupTitle (g, R (x + 190, 552, kChanW - 206, 14), "VIBRATO");
     }
 }
 
@@ -251,30 +185,29 @@ void The89thEditor::resized()
                                      juce::roundToInt (w * s), juce::roundToInt (h * s));
     };
 
-    init_.setBounds (R (990, 12, 52, 50));
+    init_.setBounds (R (1022, 14, 54, 46));
 
-    mode_.setBounds      (R (62,  90, 150, 80));
-    stereo_.setBounds    (R (226, 90, 150, 80));
-    range_.setBounds     (R (390, 90, 150, 80));
-    bandwidth_.setBounds (R (554, 90, 170, 80));
-    freeze_.setBounds    (R (772, 88, 102, 84));
-    mix_.setBounds       (R (938, 86, 92, 88));
+    mode_.setBounds      (R (kMargin + 18,  98, 150, 70));
+    stereo_.setBounds    (R (kMargin + 190, 98, 150, 70));
+    range_.setBounds     (R (kMargin + 362, 98, 150, 70));
+    bandwidth_.setBounds (R (kMargin + 534, 98, 150, 70));
+    freeze_.setBounds    (R (kMargin + 736, 106, 130, 52));
+    mix_.setBounds       (R (kMargin + 928, 92, 98, 84));
 
     for (int c = 0; c < 2; ++c)
     {
-        const float x = c == 0 ? kMargin : 558.0f;
+        const float x = kMargin + static_cast<float> (c) * (kChanW + kGap);
         auto& ui = *ch_[static_cast<std::size_t> (c)];
 
-        ui.display.setBounds (R (x + 16, 210, 466, 196));
+        ui.display.setBounds (R (x + 16, 214, kChanW - 32, 194));
 
+        const float colW = (kChanW - 32) / 4.0f;
         Knob* row1[] = { &ui.delay, &ui.pitch, &ui.xp1, &ui.xp2 };
         for (int i = 0; i < 4; ++i)
-            row1[i]->setBounds (R (x + 16 + i * 116.5f + 10, 432, 96, 108));
+            row1[i]->setBounds (R (x + 16 + static_cast<float> (i) * colW + (colW - 100) * 0.5f, 434, 100, 116));
 
-        ui.feedback.setBounds (R (x + 16 + 27, 562, 96, 96));
-        ui.vibDepth.setBounds (R (x + 190 + 40, 562, 96, 96));
-        ui.vibRate.setBounds  (R (x + 190 + 156, 562, 96, 96));
+        ui.feedback.setBounds (R (x + 16 + 25, 566, 100, 94));
+        ui.vibDepth.setBounds (R (x + 190 + 40, 566, 100, 94));
+        ui.vibRate.setBounds  (R (x + 190 + 160, 566, 100, 94));
     }
-
-    rebuildWood();
 }

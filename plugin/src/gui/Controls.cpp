@@ -1,41 +1,11 @@
 #include "Controls.h"
 
-// ─── Drawing helpers ────────────────────────────────────────────────────────
-
 namespace draw
 {
-void led (juce::Graphics& g, juce::Point<float> c, float r, juce::Colour lit, bool on)
+void dot (juce::Graphics& g, juce::Point<float> c, float r, bool on)
 {
-    if (on)
-    {
-        g.setColour (lit.withAlpha (0.18f));
-        g.fillEllipse (c.x - r * 2.2f, c.y - r * 2.2f, r * 4.4f, r * 4.4f);
-        g.setColour (lit);
-    }
-    else
-    {
-        g.setColour (lit.darker (2.6f).withAlpha (0.9f));
-    }
+    g.setColour (on ? theme::orange : theme::dotOff);
     g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
-
-    // A pin-point highlight so an unlit LED still reads as a lens.
-    g.setColour (juce::Colours::white.withAlpha (on ? 0.55f : 0.12f));
-    g.fillEllipse (c.x - r * 0.45f, c.y - r * 0.55f, r * 0.5f, r * 0.4f);
-}
-
-void buttonCap (juce::Graphics& g, juce::Rectangle<float> r, bool pressed)
-{
-    const float corner = r.getHeight() * 0.08f;
-    g.setColour (juce::Colours::black);
-    g.fillRoundedRectangle (r.translated (0.0f, 1.5f), corner);
-
-    auto cap = pressed ? r.translated (0.0f, 1.0f) : r;
-    juce::ColourGradient grad (theme::buttonTop, cap.getX(), cap.getY(),
-                               theme::button, cap.getX(), cap.getBottom(), false);
-    g.setGradientFill (grad);
-    g.fillRoundedRectangle (cap, corner);
-    g.setColour (juce::Colours::white.withAlpha (pressed ? 0.03f : 0.08f));
-    g.drawHorizontalLine (juce::roundToInt (cap.getY() + 1.0f), cap.getX() + 2.0f, cap.getRight() - 2.0f);
 }
 } // namespace draw
 
@@ -54,7 +24,8 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
     slider_.setRotaryParameters (juce::degreesToRadians (225.0f), juce::degreesToRadians (495.0f), true);
     slider_.setDoubleClickReturnValue (true, param_.convertFrom0to1 (param_.getDefaultValue()));
     slider_.setMouseDragSensitivity (240);
-    slider_.setPopupDisplayEnabled (true, true, nullptr, 900);
+    slider_.getProperties().set ("bipolar", paramId.startsWith ("pitch"));
+    slider_.setTooltip (param_.getName (64) + ". Double-click to reset.");
 
     auto report = [this]
     {
@@ -62,7 +33,12 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
             onTouch (legend_, param_.getCurrentValueAsText());
     };
     slider_.onDragStart   = report;
-    slider_.onValueChange = [this, report] { if (slider_.isMouseButtonDown()) report(); };
+    slider_.onValueChange = [this, report]
+    {
+        repaint();
+        if (slider_.isMouseButtonDown())
+            report();
+    };
 
     addAndMakeVisible (slider_);
 }
@@ -70,40 +46,45 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
 void Knob::resized()
 {
     auto r = getLocalBounds();
-    r.removeFromBottom (juce::roundToInt (r.getHeight() * 0.22f));
+    r.removeFromBottom (juce::roundToInt (r.getHeight() * 0.36f));
     const int side = std::min (r.getWidth(), r.getHeight());
     slider_.setBounds (r.withSizeKeepingCentre (side, side));
-
-    // Show the popup inside the editor rather than as a separate desktop
-    // window, which some hosts place badly.
-    if (auto* top = getTopLevelComponent(); top != nullptr && top != this)
-        slider_.setPopupDisplayEnabled (true, true, top, 900);
 }
 
 void Knob::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    const auto legendArea = r.removeFromBottom (r.getHeight() * 0.22f);
+    auto text = r.removeFromBottom (r.getHeight() * 0.36f);
     const auto knob = slider_.getBounds().toFloat();
 
-    g.setColour (theme::print);
-    g.setFont (theme::legend (legendArea.getHeight() * 0.62f));
-    g.drawFittedText (legend_, legendArea.toNearestInt(), juce::Justification::centred, 1);
+    // Type follows the width, which every encoder shares, so all of them
+    // print at the same size whatever their height.
+    const float wUnit = r.getWidth() / 100.0f;
 
+    // End marks under the ends of the ring, inside the component.
     if (minMark_.isNotEmpty() || maxMark_.isNotEmpty())
     {
-        // Printed under the ends of the scale, kept inside the component so
-        // nothing clips.
         const auto full = getLocalBounds().toFloat();
-        const float mh  = knob.getHeight() * 0.15f;
-        const float y   = knob.getBottom() - mh;
-        g.setColour (theme::printDim);
-        g.setFont (theme::legend (mh * 0.85f));
+        const float mh = 12.0f * wUnit;
+        const float y  = knob.getBottom() - mh;
+        g.setColour (theme::textDim);
+        g.setFont (theme::mono (9.0f * wUnit));
         g.drawText (minMark_, juce::Rectangle<float> (full.getX(), y, full.getWidth() * 0.4f, mh),
                     juce::Justification::centredLeft);
         g.drawText (maxMark_, juce::Rectangle<float> (full.getRight() - full.getWidth() * 0.4f, y, full.getWidth() * 0.4f, mh),
                     juce::Justification::centredRight);
     }
+
+    const auto nameArea  = text.removeFromTop (17.0f * wUnit);
+    const auto valueArea = text.removeFromTop (17.0f * wUnit);
+
+    g.setColour (theme::text);
+    g.setFont (theme::mono (11.5f * wUnit));
+    g.drawFittedText (legend_, nameArea.toNearestInt(), juce::Justification::centred, 1);
+
+    g.setColour (theme::orange);
+    g.setFont (theme::mono (12.0f * wUnit, true));
+    g.drawFittedText (param_.getCurrentValueAsText(), valueArea.toNearestInt(), juce::Justification::centred, 1);
 }
 
 // ─── ButtonGroup ────────────────────────────────────────────────────────────
@@ -122,45 +103,44 @@ ButtonGroup::ButtonGroup (juce::AudioProcessorValueTreeState& state, const juce:
 
 juce::Rectangle<float> ButtonGroup::buttonRect (int i) const
 {
-    // Title across the top, then per button: LED, cap, legend.
-    const auto r   = getLocalBounds().toFloat();
-    const float h  = r.getHeight();
-    const int   n  = legends_.size();
-    const float cw = r.getWidth() / static_cast<float> (n);
-    const float bw = std::min (cw * 0.78f, h * 0.62f);
-    const float bh = h * 0.30f;
-    return { r.getX() + cw * (static_cast<float> (i) + 0.5f) - bw * 0.5f, r.getY() + h * 0.40f, bw, bh };
+    // Title, then a row of dots, then the joined segments.
+    const auto  r = getLocalBounds().toFloat();
+    const float h = r.getHeight();
+    const float w = r.getWidth() / static_cast<float> (legends_.size());
+    return { r.getX() + w * static_cast<float> (i), r.getY() + h * 0.52f, w, h * 0.40f };
 }
 
 void ButtonGroup::paint (juce::Graphics& g)
 {
-    const auto r = getLocalBounds().toFloat();
+    const auto  r = getLocalBounds().toFloat();
     const float h = r.getHeight();
 
-    g.setColour (theme::print);
-    g.setFont (theme::title (h * 0.24f));
-    g.drawText (title_, r.withHeight (h * 0.22f), juce::Justification::centred);
+    g.setColour (theme::text);
+    g.setFont (theme::mono (h * 0.17f, true));
+    g.drawText (title_, r.withHeight (h * 0.26f), juce::Justification::centred);
 
     for (int i = 0; i < legends_.size(); ++i)
     {
-        const auto b  = buttonRect (i);
+        const auto b  = buttonRect (i).reduced (1.5f, 0.0f);
         const bool on = i == selected_;
 
-        draw::led (g, { b.getCentreX(), r.getY() + h * 0.31f }, h * 0.045f, theme::ledRed, on);
-        draw::buttonCap (g, b, on);
+        draw::dot (g, { b.getCentreX(), r.getY() + h * 0.38f }, h * 0.035f, on);
 
-        g.setColour (on ? theme::print : theme::printDim);
-        g.setFont (theme::legend (h * 0.16f));
-        g.drawText (legends_[i], juce::Rectangle<float> (b.getX() - 10.0f, b.getBottom() + h * 0.03f,
-                                                         b.getWidth() + 20.0f, h * 0.2f),
-                    juce::Justification::centred);
+        g.setColour (on ? theme::orange : theme::surface);
+        g.fillRect (b);
+        g.setColour (on ? theme::orange : theme::hairHi);
+        g.drawRect (b, 1.0f);
+
+        g.setColour (on ? theme::bg : theme::textDim);
+        g.setFont (theme::mono (b.getHeight() * 0.36f, on));
+        g.drawText (legends_[i], b, juce::Justification::centred);
     }
 }
 
 void ButtonGroup::mouseDown (const juce::MouseEvent& e)
 {
     for (int i = 0; i < legends_.size(); ++i)
-        if (buttonRect (i).expanded (4.0f).contains (e.position))
+        if (buttonRect (i).expanded (0.0f, 4.0f).contains (e.position))
         {
             attach_.setValueAsCompleteGesture (static_cast<float> (i));
             return;
@@ -183,37 +163,36 @@ PushButton::PushButton (juce::AudioProcessorValueTreeState& state, const juce::S
 
 void PushButton::paint (juce::Graphics& g)
 {
-    const auto r = getLocalBounds().toFloat();
+    const auto  r   = getLocalBounds().toFloat().reduced (1.0f);
+    const bool  lit = on_ || pressed_;
+
+    if (style_ == Style::Accent)
+    {
+        // Outlined orange at rest, solid orange when latched.
+        g.setColour (lit ? theme::orange : theme::bg);
+        g.fillRect (r);
+        g.setColour (theme::orange);
+        g.drawRect (r, 1.5f);
+        g.setColour (lit ? theme::bg : theme::orange);
+        g.setFont (theme::mono (r.getHeight() * 0.30f, true));
+        g.drawText (legend_, r, juce::Justification::centred);
+        return;
+    }
+
+    // Plain: dot, hairline button, legend under it.
     const float h = r.getHeight();
+    draw::dot (g, { r.getCentreX(), r.getY() + h * 0.1f }, h * 0.06f, lit);
 
-    // LED on top, cap below, legend printed on the cap for the cream button
-    // and under it for the dark one.
-    const bool ledLit = on_ || (momentary_ && pressed_);
-    draw::led (g, { r.getCentreX(), r.getY() + h * 0.09f }, h * 0.055f, theme::ledRed, ledLit);
+    const auto cap = juce::Rectangle<float> (r.getX(), r.getY() + h * 0.24f, r.getWidth(), h * 0.44f);
+    g.setColour (pressed_ ? theme::orange : theme::surface);
+    g.fillRect (cap);
+    g.setColour (pressed_ ? theme::orange : theme::hairHi);
+    g.drawRect (cap, 1.0f);
 
-    auto cap = juce::Rectangle<float> (r.getX() + 2.0f, r.getY() + h * 0.22f, r.getWidth() - 4.0f, h * 0.52f);
-
-    if (style_ == Style::Cream)
-    {
-        const float corner = cap.getHeight() * 0.06f;
-        g.setColour (juce::Colours::black);
-        g.fillRoundedRectangle (cap.translated (0.0f, 2.0f), corner);
-        if (pressed_) cap = cap.translated (0.0f, 1.2f);
-        juce::ColourGradient grad (theme::cream, cap.getX(), cap.getY(), theme::creamDark, cap.getX(), cap.getBottom(), false);
-        g.setGradientFill (grad);
-        g.fillRoundedRectangle (cap, corner);
-        g.setColour (juce::Colour (0xff2a241a));
-        g.setFont (theme::title (cap.getHeight() * 0.42f));
-        g.drawText (legend_, cap, juce::Justification::centred);
-    }
-    else
-    {
-        draw::buttonCap (g, cap, pressed_);
-        g.setColour (theme::print);
-        g.setFont (theme::legend (h * 0.2f));
-        g.drawText (legend_, juce::Rectangle<float> (r.getX() - 10.0f, cap.getBottom() + h * 0.04f, r.getWidth() + 20.0f, h * 0.22f),
-                    juce::Justification::centred);
-    }
+    g.setColour (theme::textDim);
+    g.setFont (theme::mono (h * 0.2f));
+    g.drawText (legend_, juce::Rectangle<float> (r.getX() - 10.0f, cap.getBottom() + h * 0.05f, r.getWidth() + 20.0f, h * 0.24f),
+                juce::Justification::centred);
 }
 
 void PushButton::mouseDown (const juce::MouseEvent&)

@@ -11,14 +11,13 @@
 
 class The89thProcessor;
 
-/** The front panel.
+/** The panel.
 
-    Laid out on a 1100 x 680 design grid and scaled as a whole. Wood cheeks
-    either side of a black panel. Along the top: the name, a serial plate with
-    the build stamp, and Init. Then three ruled sections: SYSTEM (the machine's
-    switches), LATCH (the one cream button) and OUTPUT (mix). Below, one
-    section per channel: its display, then the read controls and the
-    recirculation and vibrato controls under printed group titles.
+    Laid out on a 1100 x 680 design grid and scaled as a whole. Black ground,
+    hairline structure, orange for everything live. Along the top: the name,
+    the build stamp, and Init. Then SYSTEM (the machine's switches), LATCH and
+    OUTPUT. Below, one section per channel: its display, then the read
+    controls and the recirculation and vibrato controls.
 
     Controls the current mode ignores fade back rather than hide, so nothing
     moves under your hand. */
@@ -56,8 +55,6 @@ private:
     /** A group title centred over a span, with a rule either side. */
     void groupTitle (juce::Graphics&, juce::Rectangle<float> span, const juce::String& title) const;
 
-    void rebuildWood();
-
     The89thProcessor& proc_;
     theme::LookAndFeel lnf_;
     juce::TooltipWindow tooltips_ { this, 700 };
@@ -66,8 +63,6 @@ private:
     PushButton freeze_, init_;
     Knob mix_;
     std::array<std::unique_ptr<ChannelUI>, 2> ch_;
-
-    juce::Image wood_;   // one cheek, cached per size
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thEditor)
 };
