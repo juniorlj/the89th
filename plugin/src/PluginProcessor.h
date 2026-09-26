@@ -72,22 +72,13 @@ private:
     /** Init is a momentary control wearing a toggle's clothes, because that is
         all a generic editor offers. Flipping it on hands off to the message
         thread, puts every other parameter back to its default, then flips it
-        off again so it reads as a button rather than a state.
-
-        The same handoff reports a latency change: bandwidth and stereo layout
-        move the converter clock, and with it the resampler's latency, but a
-        host must hear about that from the message thread. */
+        off again so it reads as a button rather than a state. */
     void parameterChanged (const juce::String& id, float value) override;
     void handleAsyncUpdate() override;
 
     the89th::Engine   engine_;
     Telemetry         telemetry_;
     std::atomic<bool> resetRequested_ { false };
-    std::atomic<bool> initRequested_  { false };
-
-    /** Audio thread only: what the host was last told, to spot a change. */
-    int              latencyReported_ = 0;
-    std::atomic<int> latencyPending_ { -1 };
 
     struct ChannelRaw
     {

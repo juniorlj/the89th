@@ -159,27 +159,57 @@ TEST_CASE ("the plugin passes audio and stays finite", "[plugin]")
     }
 }
 
-TEST_CASE ("a bandwidth switch reports the new latency to the host", "[plugin]")
+TEST_CASE ("restoring a state restores every parameter including switches", "[plugin]")
 {
+    // A host can hand a switch any value between 0 and 1. JUCE's parameter
+    // tree records the switch as already matching the state, so a plain
+    // replaceState leaves it where the host put it. Found by pluginval.
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+
+    juce::MemoryBlock saved;
+    p.getStateInformation (saved);
+
+    for (auto* param : resettable (p))
+    {
+        const float original = param->getValue();
+        param->setValue (original < 0.5f ? 0.36f : 0.64f);
+
+        p.setStateInformation (saved.getData(), static_cast<int> (saved.getSize()));
+
+        INFO (param->paramID);
+        REQUIRE (param->getValue() == Approx (original).margin (1.0e-6));
+    }
+}
+
+TEST_CASE ("latency stays put across every clock setting", "[plugin]")
+{
+    // A host has to restart a plugin to take a new latency, and a restart
+    // empties the memory. So a bandwidth or layout switch must not change it,
+    // or the octave jump on a bandwidth switch becomes a gap.
     juce::ScopedJuceInitialiser_GUI gui;
 
     The89thProcessor p;
     p.prepareToPlay (48000.0, 512);
-    const int before = p.getLatencySamples();
-    REQUIRE (before > 0);
+    const int latency = p.getLatencySamples();
+    REQUIRE (latency > 0);
 
     juce::AudioBuffer<float> buffer (2, 512);
     juce::MidiBuffer midi;
 
-    // 5 kHz halves the clock, which stretches the resampler's latency.
-    p.apvts.getParameter (pid::bandwidth)->setValueNotifyingHost (0.0f);
-    buffer.clear();
-    p.processBlock (buffer, midi);
-    pumpMessageThread();
+    for (float stereo : { 0.0f, 1.0f })
+        for (float bw : { 0.0f, 0.5f, 1.0f })
+        {
+            p.apvts.getParameter (pid::stereo)->setValueNotifyingHost (stereo);
+            p.apvts.getParameter (pid::bandwidth)->setValueNotifyingHost (bw);
+            buffer.clear();
+            p.processBlock (buffer, midi);
+            pumpMessageThread (20);
 
-    const int after = p.getLatencySamples();
-    REQUIRE (after != before);
-    REQUIRE (after == static_cast<int> (std::ceil (p.engine().latencySamples())));
+            INFO ("stereo " << stereo << ", bandwidth " << bw);
+            REQUIRE (p.getLatencySamples() == latency);
+            REQUIRE (p.engine().latencySamples() == static_cast<double> (latency));
+        }
 }
 
 TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugin][gui]")

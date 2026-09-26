@@ -147,6 +147,25 @@ public:
         outPosInternal_ -= lead() - leadBefore;
     }
 
+    /** The latency the converters need at a given clock, in host samples. The
+        slower the clock, the longer the kernels reach in host time. */
+    static double naturalLatency (double hostRate, double internalRateHz) noexcept
+    {
+        const double ratio = internalRateHz / hostRate;
+        return ((kHalf + 1.0) + (kHalf + 1.0) * ratio + 2.0) / ratio;
+    }
+
+    /** Hold the output this many host samples behind the input whatever the
+        clock, instead of each clock's own minimum. Given the slowest clock's
+        latency, every faster clock meets its minimum with room to spare, and a
+        bandwidth switch never changes what the host is told. Mid-stream safe. */
+    void setFixedLatency (double hostSamples) noexcept
+    {
+        const double leadBefore = lead();
+        fixedLatency_ = std::max (0.0, hostSamples);
+        outPosInternal_ -= lead() - leadBefore;
+    }
+
     void reset() noexcept
     {
         for (auto& r : in_)  std::fill (r.begin(), r.end(), 0.0f);
@@ -209,10 +228,12 @@ public:
 private:
     /** How far the output read trails machine production, in internal samples:
         the output kernel's lookahead, plus the input kernel's lookahead converted
-        from host samples, plus a sample of margin for the fractional phases. */
+        from host samples, plus a sample of margin for the fractional phases.
+        Stretched to the fixed latency when one is set. */
     double lead() const noexcept
     {
-        return (kHalf + 1.0) + (kHalf + 1.0) * ratio_ + 2.0;
+        const double natural = (kHalf + 1.0) + (kHalf + 1.0) * ratio_ + 2.0;
+        return std::max (natural, fixedLatency_ * ratio_);
     }
 
     std::array<std::vector<float>, 2> in_, out_;
@@ -226,6 +247,7 @@ private:
     long long machineIndex_ = 0;
     double nextMachineTimeHost_ = 0.0;
     double outPosInternal_      = 0.0;
+    double fixedLatency_        = 0.0;
 };
 
 } // namespace the89th

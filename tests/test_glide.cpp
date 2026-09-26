@@ -116,10 +116,12 @@ TEST_CASE ("mix fades rather than switching", "[glide][engine]")
     run (e, kGlideLen + 4 * kBlock, &out);
 
     // The dry gain at sample i is the tone's envelope: 1 - (i + 1) / length.
-    // run() starts its tone from phase zero on each call.
-    for (int i : { 1, kGlideLen / 4, kGlideLen / 2, (3 * kGlideLen) / 4 })
+    // The dry path runs the reported latency behind the input, and run()
+    // starts its tone from phase zero on each call.
+    const int lat = static_cast<int> (e.latencySamples());
+    for (int i : { lat + 1, kGlideLen / 4, kGlideLen / 2, (3 * kGlideLen) / 4 })
     {
-        const double in  = 0.5 * std::sin (2.0 * M_PI * 440.0 * i / kHost);
+        const double in  = 0.5 * std::sin (2.0 * M_PI * 440.0 * (i - lat) / kHost);
         if (std::abs (in) < 0.1)
             continue;
 
@@ -174,4 +176,32 @@ TEST_CASE ("moving a crosspoint past the head splices instead of clicking", "[gl
     const float observed = test_support::maxAbsDelta (out.data(), moveAt - 200, moveAt + 400);
     INFO ("observed " << observed << " natural " << natural);
     REQUIRE (static_cast<double> (observed) < 2.0 * natural);
+}
+
+TEST_CASE ("the dry signal arrives exactly on the reported latency", "[glide][engine][timing]")
+{
+    // The host moves this plugin's output earlier by the reported latency, so
+    // dry has to be late by exactly that much to land back in time.
+    for (double host : { 44100.0, 48000.0, 96000.0 })
+    {
+        Engine e;
+        e.prepare (host, kBlock);
+
+        EngineParams p;
+        p.mix = 0.0;
+        e.setParams (p);
+
+        std::vector<float> l (static_cast<std::size_t> (4 * kBlock), 0.0f), r = l;
+        l[10] = r[10] = 1.0f;
+        for (int pos = 0; pos < 4 * kBlock; pos += kBlock)
+        {
+            float* io[2] = { l.data() + pos, r.data() + pos };
+            e.process (io, 2, kBlock);
+        }
+
+        const auto at = static_cast<std::size_t> (10 + static_cast<int> (e.latencySamples()));
+        INFO ("host " << host << ", latency " << e.latencySamples());
+        REQUIRE (l[at] == 1.0f);
+        REQUIRE (r[at] == 1.0f);
+    }
 }

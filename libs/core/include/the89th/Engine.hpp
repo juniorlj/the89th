@@ -56,6 +56,16 @@ public:
         machine_.setParams (params_);
         adapter_.prepare (hostRate_, machine_.internalSampleRate());
 
+        // One latency for every clock: the slowest one's, rounded up to whole
+        // samples. A host has to restart a plugin to take a new latency, and a
+        // restart empties the memory, which would turn a bandwidth switch's
+        // octave jump into a gap.
+        const double slowest = spec.converterClockHz / rateDivisor (Bandwidth::k5kHz);
+        latency_ = static_cast<int> (std::ceil (RateAdapter::naturalLatency (hostRate_, slowest)));
+        adapter_.setFixedLatency (latency_);
+        for (auto& d : dryDelay_)
+            d.assign (static_cast<std::size_t> (latency_), 0.0f);
+
         const auto block = static_cast<std::size_t> (maxBlock_);
         for (std::size_t ch = 0; ch < kNumChannels; ++ch)
         {
@@ -85,6 +95,9 @@ public:
             reconstruct_[ch].reset();
             emphasis_[ch].reset();
         }
+        for (auto& d : dryDelay_)
+            std::fill (d.begin(), d.end(), 0.0f);
+        dryPos_ = 0;
         forEachGlide ([] (Glide& g) { g.snap (g.target()); });
         machine_.setParams (glided());
     }
@@ -124,7 +137,8 @@ public:
         }
     }
 
-    double latencySamples() const noexcept { return adapter_.latencySamples(); }
+    /** Whole host samples, the same at every clock, and shared by the dry path. */
+    double latencySamples() const noexcept { return static_cast<double> (latency_); }
 
     const DefaultMachine& machine() const noexcept { return machine_; }
     const EngineParams&   params()  const noexcept { return params_; }
@@ -243,6 +257,25 @@ private:
                           [this] (float l, float r, float& ol, float& orr) noexcept
                           { machine_.step (l, r, ol, orr); });
 
+        // The host shifts this plugin's output earlier by the reported latency,
+        // so the dry signal is held back by the same amount to stay in time.
+        const auto delayLen = static_cast<std::size_t> (latency_);
+        for (std::size_t ch = 0; ch < kNumChannels && delayLen > 0; ++ch)
+        {
+            auto& line = dryDelay_[ch];
+            std::size_t pos = dryPos_;
+            for (std::size_t i = 0; i < len; ++i)
+            {
+                const float held = line[pos];
+                line[pos] = dry_[ch][i];
+                dry_[ch][i] = held;
+                if (++pos == delayLen)
+                    pos = 0;
+            }
+        }
+        if (delayLen > 0)
+            dryPos_ = (dryPos_ + len) % delayLen;
+
         const auto outs = std::min (static_cast<std::size_t> (numChannels), kNumChannels);
         for (std::size_t ch = 0; ch < outs; ++ch)
         {
@@ -310,6 +343,10 @@ private:
 
     std::array<std::vector<float>, kNumChannels> dry_ {}, pre_ {}, wet_ {};
     std::vector<float> mixGain_;
+
+    int latency_ = 0;
+    std::array<std::vector<float>, kNumChannels> dryDelay_ {};
+    std::size_t dryPos_ = 0;
 
     std::array<ChannelGlides, kNumChannels> glides_ {};
     Glide mix_;

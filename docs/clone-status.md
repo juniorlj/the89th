@@ -62,7 +62,7 @@ Nothing here has been compared against a working unit. That comparison is the on
 ## Known limits of the plugin itself
 
 - **20 kHz at a 44.1 kHz host.** The host's own Nyquist limit is 22.05 kHz, so the filters are capped at 0.45 × host rate. Run the host at 48 kHz or higher for the full 20 kHz band.
-- **Latency moves with bandwidth.** The resampler's latency depends on the clock. A switch is reported to the host straight away, but some hosts only re-align tracks once playback stops.
+- **Fixed conversion latency.** The resampler needs more time at a slower clock. The plugin always reports the slowest clock's figure, about 3.3 ms, and pads the faster clocks to match. A changing latency would make the host restart the plugin, which empties the memory. The dry signal is held back by the same amount so it stays in time with the rest of the project.
 - **Peaks can go above 0 dBFS.** Two things add up. Mid-crossfade, both heads play at once: on an equal-power fade the pair can sum to +3 dB where they happen to line up, and Xing brings that down by switching to equal gain when the join matches. And heavy feedback clips the converter, and the steep output filter overshoots on the clipped edges. Measured: up to about +3 dB from the machine, +5 dB after the filter, on a chord at 0.95 feedback. The analog stages of the original would do the same. A DAW works in floating point, so nothing clips inside the plugin; keep an eye on the channel meter at extreme feedback.
 - **A running FL keeps the build it loaded first.** Quit and reopen FL after a rebuild; the build stamp tells you which build is loaded. See the README.
 

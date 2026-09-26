@@ -134,8 +134,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
             AudioParameterFloatAttributes{}.withStringFromValueFunction (hertzText)));
     }
 
+    // Not automatable: a host automation lane or a "randomise" should never be
+    // able to wipe every setting and the memory mid-song. The panel button
+    // still works.
     layout.add (std::make_unique<AudioParameterBool> (
-        ParameterID { pid::init, 1 }, "Init", false));
+        ParameterID { pid::init, 1 }, "Init", false,
+        AudioParameterBoolAttributes{}.withAutomatable (false)));
 
     return layout;
 }
@@ -181,20 +185,11 @@ void The89thProcessor::parameterChanged (const juce::String& id, float value)
     // Called from whichever thread moved the control, possibly the audio one,
     // so do nothing here but hand off.
     if (id == pid::init && value > 0.5f)
-    {
-        initRequested_.store (true);
         triggerAsyncUpdate();
-    }
 }
 
 void The89thProcessor::handleAsyncUpdate()
 {
-    if (const int latency = latencyPending_.exchange (-1); latency >= 0)
-        setLatencySamples (latency);
-
-    if (! initRequested_.exchange (false))
-        return;
-
     for (auto* p : getParameters())
     {
         auto* withID = dynamic_cast<juce::AudioProcessorParameterWithID*> (p);
@@ -222,10 +217,11 @@ void The89thProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     engine_.reset();
     updateReadout();
 
-    // Conversion latency only. The delay the engine imposes is the effect.
-    latencyReported_ = static_cast<int> (std::ceil (engine_.latencySamples()));
-    latencyPending_.store (-1);
-    setLatencySamples (latencyReported_);
+    // Conversion latency only. The delay the engine imposes is the effect. The
+    // engine keeps it the same at every clock, so it is only ever set here: a
+    // change mid-session would make the host restart the plugin and empty its
+    // memory.
+    setLatencySamples (juce::roundToInt (engine_.latencySamples()));
 }
 
 bool The89thProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -297,13 +293,6 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
     engine_.setParams (readParams());
     updateReadout();
-
-    if (const int latency = static_cast<int> (std::ceil (engine_.latencySamples())); latency != latencyReported_)
-    {
-        latencyReported_ = latency;
-        latencyPending_.store (latency);
-        triggerAsyncUpdate();
-    }
 
     engine_.process (buffer.getArrayOfWritePointers(),
                      buffer.getNumChannels(),
@@ -379,9 +368,24 @@ void The89thProcessor::getStateInformation (juce::MemoryBlock& destData)
 
 void The89thProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    if (auto xml = getXmlFromBinary (data, sizeInBytes))
-        if (xml->hasTagName (apvts.state.getType()))
-            apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    auto xml = getXmlFromBinary (data, sizeInBytes);
+    if (xml == nullptr || ! xml->hasTagName (apvts.state.getType()))
+        return;
+
+    apvts.replaceState (juce::ValueTree::fromXml (*xml));
+
+    // replaceState skips any parameter the tree believes already matches. A
+    // switch the host set to 0.36 reads as "off" to the tree but still reports
+    // 0.36, so it would never be put back. Set every parameter to the tree's
+    // value explicitly.
+    for (auto* raw : getParameters())
+        if (auto* param = dynamic_cast<juce::RangedAudioParameter*> (raw))
+            if (auto* stored = apvts.getRawParameterValue (param->paramID))
+            {
+                const float want = param->convertTo0to1 (stored->load());
+                if (std::abs (param->getValue() - want) > 1.0e-6f)
+                    param->setValueNotifyingHost (want);
+            }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

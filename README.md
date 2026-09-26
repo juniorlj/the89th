@@ -31,7 +31,7 @@ Needs CMake, Ninja and Apple clang. JUCE and Catch2 download on first configure.
 pluginval --strictness-level 10 --validate ~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3
 ```
 
-It passes at level 10, the strictest.
+It passes at level 10, the strictest. The tests use random values, so a single pass proves less than it looks: run it a few times with `--random-seed 1`, `2`, `3` and so on. A failure prints its seed, and running with that seed repeats it.
 
 ## How it works
 
@@ -63,7 +63,7 @@ The panel opens at 1100 × 680 and resizes from 880 to 1760 wide, keeping its pr
 **LATCH / OUTPUT**
 - **Freeze** stops recording and keeps looping the crosspoint region, with pitch and reverse still active. It lights solid orange while latched.
 - **Mix** goes from dry to wet.
-- **Init** returns every control to its default and clears the memory.
+- **Init** returns every control to its default and clears the memory. Hosts can't automate it, so a stray automation lane can't wipe a song's settings.
 
 **Each channel**
 - **Delay:** the delay time in Delay mode. It fades when Pitch mode is on.
