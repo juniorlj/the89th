@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <functional>
 
 namespace the89th
 {
@@ -24,7 +25,10 @@ public:
 
     void setTarget (double v) noexcept
     {
-        if (v == target_)
+        // Exact on purpose: the host resends the same value every block, and
+        // only a real change should restart the glide. std::equal_to says so
+        // without tripping -Wfloat-equal.
+        if (std::equal_to<double> {} (v, target_))
             return;
 
         target_    = v;
