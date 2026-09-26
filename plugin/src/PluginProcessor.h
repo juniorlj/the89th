@@ -5,6 +5,7 @@
 #include <the89th/Engine.hpp>
 #include <the89th/Musical.hpp>
 
+#include "Presets.h"
 #include "Telemetry.h"
 
 #include <array>
@@ -71,6 +72,9 @@ private:
 
 public:
     juce::AudioProcessorValueTreeState apvts;
+
+    /** Declared after apvts, which it works on. Saved with the project. */
+    PresetManager presets { apvts };
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

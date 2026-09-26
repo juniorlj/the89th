@@ -509,7 +509,9 @@ juce::AudioProcessorEditor* The89thProcessor::createEditor()
 
 void The89thProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    if (auto xml = apvts.copyState().createXml())
+    auto state = apvts.copyState();
+    state.appendChild (presets.toTree(), nullptr);
+    if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
 
@@ -519,7 +521,14 @@ void The89thProcessor::setStateInformation (const void* data, int sizeInBytes)
     if (xml == nullptr || ! xml->hasTagName (apvts.state.getType()))
         return;
 
-    apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    // The preset name and A/B slots ride along in their own child, which the
+    // parameter tree must not keep: copyState would hand it back twice.
+    auto tree = juce::ValueTree::fromXml (*xml);
+    const auto presetTree = tree.getChildWithName (PresetManager::kTreeType);
+    if (presetTree.isValid())
+        tree.removeChild (presetTree, nullptr);
+
+    apvts.replaceState (tree);
 
     // replaceState skips any parameter the tree believes already matches. A
     // switch the host set to 0.36 reads as "off" to the tree but still reports
@@ -533,6 +542,8 @@ void The89thProcessor::setStateInformation (const void* data, int sizeInBytes)
                 if (std::abs (param->getValue() - want) > 1.0e-6f)
                     param->setValueNotifyingHost (want);
             }
+
+    presets.fromTree (presetTree);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

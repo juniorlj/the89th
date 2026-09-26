@@ -42,6 +42,7 @@ set_source_files_properties(src/Version.cpp PROPERTIES OBJECT_DEPENDS "${_stamp_
 target_sources(the89th_plugin PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
+    src/Presets.cpp
     src/Version.cpp
     src/gui/Theme.cpp
     src/gui/Controls.cpp

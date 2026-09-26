@@ -330,6 +330,165 @@ TEST_CASE ("sync puts the crosspoints and delay on note values", "[plugin][moder
     REQUIRE (delayMs == Approx (0.125).margin (1.0 / 26455.0));
 }
 
+// ─── Presets and A/B ────────────────────────────────────────────────────────
+
+namespace
+{
+float plain (The89thProcessor& p, const char* id)
+{
+    auto* param = p.apvts.getParameter (id);
+    return param->convertFrom0to1 (param->getValue());
+}
+
+struct TempFolder
+{
+    juce::File dir = juce::File::createTempFile ("the89th-presets");
+    TempFolder()  { dir.createDirectory(); }
+    ~TempFolder() { dir.deleteRecursively(); }
+};
+} // namespace
+
+TEST_CASE ("factory presets only name real parameters, inside their ranges", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+
+    REQUIRE (PresetManager::factory().size() >= 10);
+    REQUIRE (PresetManager::factory().front().first == "Init");
+    REQUIRE (PresetManager::factory().front().second.empty());
+
+    for (const auto& [name, values] : PresetManager::factory())
+        for (const auto& [id, v] : values)
+        {
+            INFO (name << ": " << id);
+            auto* param = p.apvts.getParameter (id);
+            REQUIRE (param != nullptr);
+            const auto range = param->getNormalisableRange().getRange();
+            REQUIRE (v >= range.getStart());
+            REQUIRE (v <= range.getEnd());
+        }
+}
+
+TEST_CASE ("loading a preset sets what it lists and resets the rest", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    TempFolder tmp;
+    PresetManager presets (p.apvts, tmp.dir);
+
+    setParam (p, pid::mix, 0.2f);
+    setParam (p, pid::drive, 0.7f);
+
+    int octaveUp = -1;
+    for (int i = 0; i < static_cast<int> (presets.entries().size()); ++i)
+        if (presets.entries()[static_cast<std::size_t> (i)].name == "Octave Up")
+            octaveUp = i;
+    REQUIRE (presets.load (octaveUp));
+
+    REQUIRE (plain (p, pid::channel[0].pitch) == Approx (2.0f));
+    REQUIRE (plain (p, pid::mix) == Approx (1.0f));     // default again
+    REQUIRE (plain (p, pid::drive) == Approx (0.0f));
+    REQUIRE (presets.currentName() == "Octave Up");
+    REQUIRE_FALSE (presets.modified());
+
+    setParam (p, pid::mix, 0.5f);
+    REQUIRE (presets.modified());
+}
+
+TEST_CASE ("a saved preset comes back exactly", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    TempFolder tmp;
+    PresetManager presets (p.apvts, tmp.dir);
+
+    setParam (p, pid::channel[0].pitch, 1.37f);
+    setParam (p, pid::channel[1].fine, -23.0f);
+    setParam (p, pid::fbRoute, 2.0f);
+    setParam (p, pid::highCut, 3300.0f);
+    const auto saved = presets.capture();
+
+    REQUIRE (presets.save ("My Sound"));
+    REQUIRE (tmp.dir.getChildFile ("My Sound.the89th").existsAsFile());
+    REQUIRE_FALSE (presets.save ("Octave Up"));   // factory names are taken
+    REQUIRE_FALSE (presets.save ("   "));
+
+    presets.load (0);   // Init
+    REQUIRE (plain (p, pid::fbRoute) == Approx (0.0f));
+
+    const auto& list = presets.entries();
+    const auto it = std::find_if (list.begin(), list.end(), [] (const auto& e) { return e.name == "My Sound"; });
+    REQUIRE (it != list.end());
+    REQUIRE_FALSE (it->factory);
+    REQUIRE (presets.load (static_cast<int> (it - list.begin())));
+
+    for (const auto& [id, v] : saved)
+    {
+        INFO (id);
+        REQUIRE (plain (p, id.toRawUTF8()) == Approx (v).margin (1.0e-5));
+    }
+
+    REQUIRE (presets.remove (static_cast<int> (it - list.begin())));
+    REQUIRE_FALSE (tmp.dir.getChildFile ("My Sound.the89th").exists());
+    REQUIRE_FALSE (presets.remove (0));   // factory presets stay
+}
+
+TEST_CASE ("A/B keeps two settings and swaps between them", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    TempFolder tmp;
+    PresetManager presets (p.apvts, tmp.dir);
+
+    setParam (p, pid::channel[0].pitch, 1.5f);
+    REQUIRE (presets.activeSlot() == 0);
+
+    presets.selectSlot (1);                      // B starts as a copy of A
+    REQUIRE (presets.activeSlot() == 1);
+    REQUIRE (plain (p, pid::channel[0].pitch) == Approx (1.5f));
+
+    setParam (p, pid::channel[0].pitch, 0.5f);
+    presets.selectSlot (0);
+    REQUIRE (plain (p, pid::channel[0].pitch) == Approx (1.5f));
+    presets.selectSlot (1);
+    REQUIRE (plain (p, pid::channel[0].pitch) == Approx (0.5f));
+
+    presets.copyToOtherSlot();                   // B onto A
+    presets.selectSlot (0);
+    REQUIRE (plain (p, pid::channel[0].pitch) == Approx (0.5f));
+}
+
+TEST_CASE ("the project keeps the preset name and both A/B slots", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+
+    juce::MemoryBlock saved;
+    {
+        The89thProcessor p;
+        p.presets.load (1);
+        setParam (p, pid::channel[0].pitch, 1.25f);
+        p.presets.selectSlot (1);
+        setParam (p, pid::channel[0].pitch, 0.75f);
+        p.getStateInformation (saved);
+    }
+
+    The89thProcessor q;
+    q.setStateInformation (saved.getData(), static_cast<int> (saved.getSize()));
+    REQUIRE (q.presets.currentName() == PresetManager::factory()[1].first);
+    REQUIRE (q.presets.activeSlot() == 1);
+    REQUIRE (plain (q, pid::channel[0].pitch) == Approx (0.75f));
+
+    q.presets.selectSlot (0);
+    REQUIRE (plain (q, pid::channel[0].pitch) == Approx (1.25f));
+
+    // Saving again straight after a restore gives back the same bytes.
+    The89thProcessor r;
+    r.setStateInformation (saved.getData(), static_cast<int> (saved.getSize()));
+    juce::MemoryBlock again;
+    r.getStateInformation (again);
+    REQUIRE (again == saved);
+}
+
 TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugin][gui]")
 {
     juce::ScopedJuceInitialiser_GUI gui;
