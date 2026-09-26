@@ -45,7 +45,6 @@ public:
         voice_.setSampleRate (internalSampleRate());
     }
 
-    Bandwidth requestedBandwidth() const noexcept { return requested_; }
     Bandwidth effectiveBandwidth() const noexcept { return effective_; }
     double    internalSampleRate() const noexcept { return internalRate (spec_, requested_); }
 

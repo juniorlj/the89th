@@ -15,7 +15,7 @@ Status: **built.** Everything in this plan is in, apart from two items dropped o
 >
 > **Dropped:**
 > - *Stereo lockstep (step 1)* was already how the clone runs: both sides step together at the internal clock.
-> - *Per-side freeze*: the hardware's latch acts on both channels, and so does ours.
+> - *Per-side freeze*: the hardware's latch acts on both channels, and so does ours. (Superseded: panel photos show a Memory Latch and a Delay/Pitch-Shifter pair on each side, so both are per channel now. See `clone-status.md`.)
 >
 > **Section 3 is revised** for the clone's parameter set: every existing ID is kept, and the new controls are listed with their final IDs.
 
@@ -97,7 +97,7 @@ Revised after the clone work. **Every existing ID stays**, with its meaning, so 
 
 | Control | ID(s) |
 |---|---|
-| Mode, Stereo, Range, Bandwidth, Freeze, Mix, Init, Build | `mode` `stereo` `range` `bandwidth` `freeze` `mix` `init` `build` |
+| Mode, Stereo, Range, Bandwidth, Freeze, Mix, Init, Build | `mode` `stereo` `range` `bandwidth` `freeze` `mix` `init` `build` (Mode and Freeze later became per side: the left kept `mode` and `freeze`, the right got `mode_r` and `freeze_r`) |
 | Per channel: Delay, Pitch (ratio), Crosspoint 1 and 2, Feedback, Vibrato depth and speed | `delay` `pitch` `xp1` `xp2` `feedback` `vib_depth` `vib_rate`, and each with `_r` for channel 2 |
 
 ### New, per channel

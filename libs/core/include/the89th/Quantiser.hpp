@@ -37,8 +37,7 @@ struct FlyingComma
 {
     static constexpr int   kMantissaBits = 9;
     static constexpr int   kRanges       = 8;
-    static constexpr float kFullScale    = 1.0f;
-    static constexpr float kMaxCode      = 1.0f - 1.0f / 512.0f;  // top range, all mantissa bits set
+    static constexpr float kMaxCode      = 1.0f - 1.0f / (1 << kMantissaBits);  // top range, all mantissa bits set
 
     static float store (float x) noexcept
     {

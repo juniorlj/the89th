@@ -127,7 +127,7 @@ WAV in, WAV out, no DAW needed:
 build/cli/the89th-render in.wav out.wav --mode pitch --pitch 1.5 --xp1 0.1 --xp2 0.5 --feedback 0.6
 ```
 
-Options: `--mode delay|pitch`, `--stereo true|quasi`, `--range long|short`, `--bandwidth 5|10|20`, `--delay`, `--pitch`, `--xp1`, `--xp2`, `--feedback`, `--mix`, `--vibrato`, `--vib-rate`, `--freeze`, `--freeze-after`, `--no-xing`. Modern: `--fine`, `--snap off|chromatic|major|minor|pentatonic`, `--vib-shape sine|square`, `--route normal|cross|sum`, `--lowcut`, `--highcut`, `--drive`, `--scrub`, `--scrub-rate`, `--scrub-mode lfo|random`. Every channel option sets both channels. Sync needs a host tempo, so it's plugin-only.
+Options: `--mode delay|pitch`, `--stereo true|quasi`, `--range long|short`, `--bandwidth 5|10|20`, `--delay`, `--pitch`, `--xp1`, `--xp2`, `--feedback`, `--mix`, `--vibrato`, `--vib-rate`, `--freeze`, `--freeze-after`, `--no-xing`. Modern: `--fine`, `--snap off|chromatic|major|minor|pentatonic`, `--vib-shape sine|square`, `--route normal|cross|sum`, `--lowcut`, `--highcut`, `--drive`, `--scrub`, `--scrub-rate`, `--scrub-mode lfo|random`. Every channel option sets both channels. Sync needs a host tempo and the keyboard needs MIDI, so both are plugin-only.
 
 ## Interface snapshot
 
@@ -140,7 +140,7 @@ Runs audio through the real plugin and renders the panel to a PNG, so you can ch
 ## Layout
 
 ```
-libs/core/     header-only DSP, no JUCE: converter, memory, read voices, Xing, filters, resampler
+libs/core/     header-only DSP, no JUCE: converter, memory, read voices, Xing, filters, resampler, keyboard
 plugin/        VST3 + Standalone shell, the panel (src/gui), tests, snapshot tool
 cli/           WAV → WAV renderer
 scripts/       validate.sh: pluginval over several seeds
@@ -160,11 +160,13 @@ Start with [`docs/what-this-is.md`](docs/what-this-is.md) for the plain-English 
 - **Not modelled:** the rear-panel control sockets (pitch clock, voltage control, insert loop), the KB 2000's microphone input, and the drift of the analog pitch oscillator.
 - **Open question:** at some pitch ratios (×0.75, for one) word-by-word reading puts image tones in the audio band, about 4 % distortion on a sine. Publison's brochure quotes 0.2 % in pitch mode. See the clone status page.
 
-Nothing has been compared against a working unit yet. Recordings from one would settle most of the assumptions.
+Demo videos of real units have been checked (listed in the clone status page), which settled the panel layout and the keyboard. Nothing has been measured against a working unit yet; recordings from one would settle most of the remaining assumptions.
 
 ## Next
 
-- Recordings from a working unit, to settle the assumed parts of the clone.
+- Recordings from a working unit, or the service manual, to settle the assumed parts and the ×0.75 question.
+- Tuning the KB 2000's times and ranges by ear, in real sessions.
+- Optional: a slow drift of the pitch clock, as the original's analog oscillator has, off by default.
 
 ## Git
 

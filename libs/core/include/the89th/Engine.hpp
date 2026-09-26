@@ -169,7 +169,6 @@ public:
     const EngineParams&   effective() const noexcept { return effective_; }
     const Keyboard&       keyboard()  const noexcept { return keyboard_; }
     double                bandEdgeHz() const noexcept { return edgeHz_; }
-    const BandLimitFilter& antiAlias (int ch) const noexcept { return antiAlias_[static_cast<std::size_t> (ch)]; }
 
 private:
     bool emphasisOn (std::size_t ch) const noexcept

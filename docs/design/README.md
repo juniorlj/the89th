@@ -15,5 +15,5 @@ The 03 mockups are Higgsfield jobs `4f8296e7-4741-4fa0-8f60-4a65a702010b` and `4
 To check the real interface against these, render it:
 
 ```bash
-build/plugin/the89th-snapshot out.png 1100 pitch     # or delay, freeze, quasi, modern
+build/plugin/the89th-snapshot out.png 1100 pitch     # or delay, freeze, quasi, modern, keys, kb
 ```

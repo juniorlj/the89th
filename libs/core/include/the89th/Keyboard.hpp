@@ -80,7 +80,6 @@ public:
         return level_;
     }
 
-    Stage  stage() const noexcept { return stage_; }
     double level() const noexcept { return level_; }
     bool   idle()  const noexcept { return stage_ == Stage::Idle; }
 
@@ -393,8 +392,6 @@ public:
 
     /** Memory Synchro's reading position, 0 oldest to 1 newest. */
     double synchroPosition (int ch) const noexcept { return voices_[static_cast<std::size_t> (ch)].pos; }
-
-    const Envelope& envelope (int ch) const noexcept { return voices_[static_cast<std::size_t> (ch)].env; }
 
 private:
     struct Voice

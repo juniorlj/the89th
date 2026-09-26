@@ -24,7 +24,8 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
     slider_.setRotaryParameters (juce::degreesToRadians (225.0f), juce::degreesToRadians (495.0f), true);
     slider_.setDoubleClickReturnValue (true, param_.convertFrom0to1 (param_.getDefaultValue()));
     slider_.setMouseDragSensitivity (240);
-    slider_.getProperties().set ("bipolar", paramId.startsWith ("pitch") || paramId.startsWith ("fine"));
+    slider_.getProperties().set ("bipolar", paramId.startsWith ("pitch") || paramId.startsWith ("fine")
+                                            || paramId == "kb_trim" || paramId.startsWith ("kb_vib_mod"));
     slider_.setTooltip (param_.getName (64) + ". Double-click to reset.");
 
     auto report = [this]
