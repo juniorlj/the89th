@@ -2,35 +2,65 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-/** Colours, type and the knob drawing, in one place.
+/** The panel's materials, type and knob drawing, in one place.
 
-    An original look on purpose: the research flags the hardware's panel
-    artwork and layout as the one thing a clone must not copy. Dark instrument
-    panel, one warm accent for anything live, a cool second colour for the
-    read heads so they separate from the write head at a glance. */
+    The design language is late-70s studio hardware as modern boutique makers
+    have revived it: a black anodised panel, legends silkscreened in white,
+    section boxes ruled in thin white lines, skirted black knobs with a white
+    pointer, square push buttons under small LEDs, one cream accent button, a
+    small monochrome display, wood end cheeks.
+
+    It borrows the language, not anyone's panel: no layout, logo or typeface
+    is taken from a real product, for the same trade-dress reason the research
+    gives about the original machine's own front panel. */
 namespace theme
 {
-inline const juce::Colour bg        { 0xff111214 };
-inline const juce::Colour panel     { 0xff191b1e };
-inline const juce::Colour panelHi   { 0xff202327 };
-inline const juce::Colour line      { 0xff2b2f34 };
-inline const juce::Colour lineHi    { 0xff3a3f46 };
-inline const juce::Colour text      { 0xffe8e6e1 };
-inline const juce::Colour textDim   { 0xff8b9097 };
-inline const juce::Colour textFaint { 0xff5c6168 };
-inline const juce::Colour accent    { 0xfff2a93b };   // write head, active controls
-inline const juce::Colour read      { 0xff5fd0c4 };   // read heads
-inline const juce::Colour region    { 0xff8c7cf0 };   // crosspoint region
-inline const juce::Colour danger    { 0xffe5654f };
+// Metal and print.
+inline const juce::Colour panel      { 0xff121213 };
+inline const juce::Colour panelEdge  { 0xff1d1d1f };
+inline const juce::Colour print      { 0xffecebe6 };   // silkscreen white
+inline const juce::Colour printDim   { 0xff8e8d88 };
+inline const juce::Colour rule       { 0xb3ecebe6 };   // section lines
 
-inline juce::Font font (float size, bool bold = false)
+// Controls.
+inline const juce::Colour knobBody   { 0xff1a1a1b };
+inline const juce::Colour knobSkirt  { 0xff0b0b0c };
+inline const juce::Colour button     { 0xff2a2a2c };
+inline const juce::Colour buttonTop  { 0xff38383b };
+inline const juce::Colour cream      { 0xffe6dcc2 };
+inline const juce::Colour creamDark  { 0xffb9ae93 };
+inline const juce::Colour ledRed     { 0xffff4331 };
+inline const juce::Colour ledRedOff  { 0xff3c1511 };
+inline const juce::Colour ledGreen   { 0xff5dff6a };
+inline const juce::Colour ledAmber   { 0xffffb52e };
+
+// Display.
+inline const juce::Colour oledBg     { 0xff050607 };
+inline const juce::Colour oled       { 0xffd9e6ff };
+inline const juce::Colour oledDim    { 0x59d9e6ff };
+inline const juce::Colour oledFaint  { 0x26d9e6ff };
+
+// Wood.
+inline const juce::Colour wood       { 0xff5b3f28 };
+inline const juce::Colour woodDark   { 0xff2e1f13 };
+
+/** Section titles and the name: tall, bold, condensed. */
+inline juce::Font title (float size)
 {
-    return juce::Font (juce::FontOptions (size, bold ? juce::Font::bold : juce::Font::plain));
+    return juce::Font (juce::FontOptions ("DIN Condensed", size, juce::Font::bold));
 }
 
-inline juce::Font mono (float size)
+/** Control legends: small condensed caps. */
+inline juce::Font legend (float size)
 {
-    return juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), size, juce::Font::plain));
+    return juce::Font (juce::FontOptions ("Avenir Next Condensed", size, juce::Font::bold))
+               .withExtraKerningFactor (0.06f);
+}
+
+/** The display's type. */
+inline juce::Font screen (float size)
+{
+    return juce::Font (juce::FontOptions ("Menlo", size, juce::Font::bold));
 }
 
 class LookAndFeel final : public juce::LookAndFeel_V4
@@ -40,5 +70,11 @@ public:
 
     void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h,
                            float pos, float start, float end, juce::Slider&) override;
+
+    // The value popup shown while a knob turns: a small printed-label box.
+    juce::Font getSliderPopupFont (juce::Slider&) override;
+    int getSliderPopupPlacement (juce::Slider&) override;
+    void drawBubble (juce::Graphics&, juce::BubbleComponent&, const juce::Point<float>& tip,
+                     const juce::Rectangle<float>& body) override;
 };
 } // namespace theme

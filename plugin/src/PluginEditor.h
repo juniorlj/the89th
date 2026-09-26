@@ -11,15 +11,17 @@
 
 class The89thProcessor;
 
-/** The panel.
+/** The front panel.
 
-    Laid out on a 1100 x 680 design grid and scaled as a whole, so every
-    proportion holds from the smallest to the largest window. Top: name, build
-    stamp, Init. Then the machine's switches, the latch and the mix. Below, one
-    panel per channel: its live memory ring and its controls.
+    Laid out on a 1100 x 680 design grid and scaled as a whole. Wood cheeks
+    either side of a black panel. Along the top: the name, a serial plate with
+    the build stamp, and Init. Then three ruled sections: SYSTEM (the machine's
+    switches), LATCH (the one cream button) and OUTPUT (mix). Below, one
+    section per channel: its display, then the read controls and the
+    recirculation and vibrato controls under printed group titles.
 
-    Controls that do nothing in the current mode fade back rather than hide, so
-    the panel never rearranges under your hand. */
+    Controls the current mode ignores fade back rather than hide, so nothing
+    moves under your hand. */
 class The89thEditor final : public juce::AudioProcessorEditor,
                             private juce::Timer
 {
@@ -44,21 +46,28 @@ private:
     {
         ChannelUI (The89thProcessor&, int channel);
 
-        MemoryRing ring;
+        MemoryRing display;
         Knob delay, pitch, xp1, xp2, feedback, vibDepth, vibRate;
     };
+
+    /** A ruled section box with its title set into the top line. */
+    void section (juce::Graphics&, juce::Rectangle<float>, const juce::String& title) const;
+
+    /** A group title centred over a span, with a rule either side. */
+    void groupTitle (juce::Graphics&, juce::Rectangle<float> span, const juce::String& title) const;
+
+    void rebuildWood();
 
     The89thProcessor& proc_;
     theme::LookAndFeel lnf_;
     juce::TooltipWindow tooltips_ { this, 700 };
 
-    SegmentedSwitch mode_, stereo_, range_, bandwidth_;
-    LatchButton freeze_, init_;
+    ButtonGroup mode_, stereo_, range_, bandwidth_;
+    PushButton freeze_, init_;
     Knob mix_;
     std::array<std::unique_ptr<ChannelUI>, 2> ch_;
 
-    std::array<juce::Rectangle<int>, 2> channelPanels_;
-    juce::Rectangle<int> header_, strip_;
+    juce::Image wood_;   // one cheek, cached per size
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thEditor)
 };
