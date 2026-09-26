@@ -86,7 +86,7 @@ It also settled the storage format. The original stored sound in an unusual form
 
 ## What got added to finish the clone
 
-**Two modes.** The original has a switch for Delay or Pitch, and a Delay knob on each channel. In Delay mode each channel is a plain delay. It also adds a treble lift before storing and takes it back off afterwards, which pushes the storage noise down. In Pitch mode the two playback heads move through the crosspoint region, and the treble lift is switched off. It's switched off because a pitch-shifted replay would move the lift and leave the treble wrong. Phase 0 only had Pitch mode.
+**Two modes.** The original has Delay and Pitch-Shifter buttons on each side, so each channel picks its own mode, and a Delay knob on each channel. In Delay mode each channel is a plain delay. It also adds a treble lift before storing and takes it back off afterwards, which pushes the storage noise down. In Pitch mode the two playback heads move through the crosspoint region, and the treble lift is switched off. It's switched off because a pitch-shifted replay would move the lift and leave the treble wrong. Phase 0 only had Pitch mode.
 
 **Two stereo layouts.** In true stereo, each channel gets half the memory and half the converter, so it can't reach 20 kHz. In quasi-stereo, one input fills the whole memory at full speed, both channels read from it with their own pitch and crosspoints, and 20 kHz works. With only one input being recorded, the two outputs are mixed together before they go back in as feedback.
 
@@ -100,9 +100,9 @@ It also settled the storage format. The original stored sound in an unusual form
 
 **The short range and vibrato.** Later units had a switch that divides the delay range by ten, for doubling and flanging. They also had vibrato depth and speed per channel. Both are in.
 
-**The keyboard.** The original had a companion keyboard that played its pitch. Ours takes MIDI instead. Hold a key and the channel plays at that key's pitch; lift every key and the channel goes quiet and holds its memory, exactly as the hardware did at note-off. So a frozen loop becomes something you can play like a sampler. It's off by default.
+**The keyboard.** The original had a companion keyboard, the KB 2000. Ours takes MIDI instead, and copies its panel section by section, going by photos of a real one and Publison's own brochure. A key plays the pitch; two keys in biphonic mode play one on each side. Notes can fade in and out through an envelope, slide from one to the next, and carry a vibrato that grows as the note goes on. Memory Synchro plays a latched recording like a sampler: every note starts at the same spot, loops a chosen stretch while you hold it, and can read faster or slower than recorded without changing pitch. Reverse Synchro listens for attacks in the incoming sound and restarts the reverse on each one, so a reversed drum part stays in time. When a side falls silent it holds its memory, exactly as the hardware did at note-off. It's all off by default. The brochure names what each part does but gives no times or ranges, so those are ours.
 
-**What's still missing:** the rear-panel control sockets, and the keyboard's time-stretch and reverse tricks, which nobody has described well enough to copy. The sockets control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those we made reasoned choices and wrote them down. [`clone-status.md`](clone-status.md) lists each one.
+**What's still missing:** the rear-panel control sockets and the slow drift of the original's analog pitch oscillator. The sockets control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those we made reasoned choices and wrote them down. [`clone-status.md`](clone-status.md) lists each one.
 
 ---
 
@@ -130,7 +130,7 @@ Once the clone was done, modern controls went on top. None of them is on the ori
 
 A VST3, installed and ready. Mac, Apple Silicon. A Standalone app, and a command-line renderer that turns a WAV into a WAV so you can compare settings without opening a DAW.
 
-The original's controls are all there: the global switches Mode, Stereo, Range, Bandwidth, Freeze and Mix, and per channel Delay, Pitch, both Crosspoints, Feedback and Vibrato. Init resets everything. Delay and crosspoints read in milliseconds, or in note values under Sync. The modern controls above sit in their own row and in each channel, and the preset strip runs along the top.
+The original's controls are all there: the shared switches Stereo, Range and Bandwidth, then Mix, and per channel Mode, Memory Latch, Delay, Pitch, both Crosspoints, Feedback and Vibrato. The KB 2000 chip swaps the channels for the keyboard's own panel. Init resets everything. Delay and crosspoints read in milliseconds, or in note values under Sync. The modern controls above sit in their own row and in each channel, and the preset strip runs along the top.
 
 ## What the panel looks like, and why
 
@@ -140,8 +140,8 @@ What's worth knowing when you use it:
 
 - **The displays show the machine working.** Each channel's memory is drawn as a circle. A white tick is the recording head sweeping round. The orange arc is the crosspoint region, and the orange squares are the playback heads, as bright as they are loud. At a join you can watch one fade out while the other fades in. None of this was visible on the original.
 - **Every knob shows its value underneath, in orange.** The display's bottom line also echoes whichever knob you're turning.
-- **Controls that do nothing in the current mode fade** instead of disappearing, so nothing moves under your hand. In Pitch mode the Delay knob fades. In Delay mode, Pitch and the crosspoints fade, unless Freeze is on, because a frozen loop still uses them.
-- **Freeze lights solid orange** while it's holding the loop.
+- **Controls that do nothing in the current mode fade** instead of disappearing, so nothing moves under your hand. In Pitch mode the Delay knob fades. In Delay mode, Pitch and the crosspoints fade, unless that side is latched, because a latched loop still uses them.
+- **Latch lights solid orange** while it's holding the loop.
 
 99 automated tests, and a stress test in a simulated host (pluginval) at its strictest level. The ones that matter most:
 

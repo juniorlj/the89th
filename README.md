@@ -61,23 +61,28 @@ The panel opens at 1100 × 800 and resizes from 880 to 1760 wide, keeping its pr
 - **Save** stores the panel as one of your presets, in `~/Library/Application Support/THE89TH/Presets`, one file each. The list also has *Delete* and *Show preset folder*. Factory presets can't be overwritten.
 - **A / B** holds two complete settings. Switching keeps the one you leave, so you can flip back and forth while you tweak; the first switch copies the current setting across. **A>B** copies the side you're on to the other. Both slots are saved with the FL project.
 
-**SYSTEM**
-- **Mode.** *Delay* gives each channel a plain delay set by its Delay knob, with the treble lift. *Pitch* makes the heads move through the crosspoint region at the Pitch ratio.
+**SYSTEM** holds the switches both channels share.
 - **Stereo.** *True* gives two independent channels, each with half the memory. *Quasi* feeds one input into the whole memory, so both channels play the same recording with their own pitch and crosspoints, and 20 kHz becomes available.
 - **Range.** *Short* divides the Delay range by ten, for doubling and flanging.
 - **Bandwidth.** 5, 10 or 20 kHz. Lower gives longer delays and grainier sound. 20 kHz needs Quasi.
 
-**LATCH / OUTPUT**
-- **Freeze** stops recording and keeps looping the crosspoint region, with pitch and reverse still active. It lights solid orange while latched.
+**OUTPUT**
 - **Mix** goes from dry to wet.
 - **Init** returns every control to its default and clears the memory. Hosts can't automate it, so a stray automation lane can't wipe a song's settings.
 
-**KEYS** plays the pitch from a MIDI keyboard, as the original's KB 2000 keyboard companion did.
-- **Channels:** *Off* (the default, MIDI ignored), *L+R*, *L* or *R*: which channels the keyboard plays.
-- **Root:** the key that plays at the original pitch, C3 by default. Each key above or below is a semitone, within the machine's range of −24 to +12. Pitch bend adds ±2 semitones.
-- A held key replaces that channel's Pitch knob, which fades on the panel. Fine still trims the tuning. The newest key sounds; lift it and the one held before comes back.
-- With no key held, the channel **latches and mutes**, as the hardware did when its pitch input was held high. The memory keeps what was playing, so the next key replays it at a new pitch. Add Freeze and the keyboard plays a frozen loop like a sampler.
-- Notes land on the exact sample they're played, and the mute fades over 5 ms so it doesn't click. The display shows the key, or MUTE.
+**KEYS** plays the machine from a MIDI keyboard, as the original's KB 2000 keyboard controller did. The KB 2000's layout and behaviour come from its own panel and Publison's brochure (see [`docs/clone-status.md`](docs/clone-status.md)); the times and ranges on it are ours, since neither gives scales.
+- **Channels:** *Off* (the default), *L*, *R* or *BI*. *BI* is the KB 2000's biphonic mode: two voices, the lower key on the left, the higher on the right. One key plays on both.
+- **Play:** *PUSH* (Push/Play) sounds only while a key is down. *SUST* (Sustain) starts the note on the key and lets the envelope decide how long it lasts.
+- **Root:** the key that plays at the original pitch, C3 by default. Each key is a semitone, within the machine's −24 to +12. Pitch bend adds ±2 semitones.
+- A key replaces the Pitch and Fine knobs of the sides it plays; they fade on the panel. The newest key sounds; lift it and the one held before comes back.
+- When a side falls silent it **latches and mutes**, as the hardware did when its pitch input was held high. The memory keeps what was playing, so the next key replays it at a new pitch. Latch it yourself and the keyboard plays a frozen loop like a sampler.
+- Notes land on the exact sample they're played. The display shows the key, or MUTE.
+- **KB 2000** opens the keyboard's panel in place of the channels:
+  - **Pitch ratio:** *Trimmer* tunes the whole keyboard (±100 cents). *Slope* glides from one note to the next (off to 2 s). *Added delay* pushes the region deeper, a delay in series with the shift.
+  - **Envelope** (*On* in its title line): attack, hold and release on each side's output. Off, notes just fade in and out over 5 ms.
+  - **Vibrato** (*On*): frequency, sharpness (sine towards square) and depth, and a modulator that each note starts: *Mod freq / sharp / depth* set how far it pulls each one, *Mod attack / release* how fast.
+  - **Memory Synchro:** for latched memory. Each note starts reading at the *Attack pt*, runs to the *End pt*, then loops from the *Return pt* while the note lasts. Points count from the oldest sound in memory. *Speed* 1× reads as recorded, slower or faster stretches time without changing pitch; *Free* reads at the pitch, like tape. The row of lights shows where each side is reading.
+  - **Reverse Synchro:** for live input. Each attack in the input restarts the side's traversal after *Delay*, so reversed segments keep the original's tempo. *Threshold* is what counts as an attack. *Gate* mutes the side while the input stays below it.
 - In FL, effects get MIDI by port: add a **MIDI Out** channel, give it a port number, and set the same number as this plugin's MIDI input port in its wrapper settings (gear icon). Notes on the MIDI Out channel, or your keyboard with it selected, then play the plugin.
 
 The next row is modern additions, not on the original. Each one does nothing at its default, so a fresh instance is still the 1978 machine.
@@ -93,9 +98,10 @@ The next row is modern additions, not on the original. Each one does nothing at 
 **SCRUB** slides the crosspoint region back and forth, by up to its own length each way. *LFO* sways smoothly; *RND* wanders to a new spot each cycle. It needs a region smaller than the whole memory to have room to move.
 
 **Each channel**
+- **Mode** and **Latch** sit at the channel's outer edge, one set per side as on the hardware. *Delay* gives the channel a plain delay set by its Delay knob, with the treble lift. *Pitch* makes its heads move through the crosspoint region at the Pitch ratio. **Latch** (the Memory Latch) stops recording and keeps looping the crosspoint region, with pitch and reverse still active; it lights solid orange while latched. In Quasi-stereo there is one recording, so either latch holds both sides.
 - **Delay:** the delay time in Delay mode. It fades when Pitch mode is on.
 - **Pitch:** 0.25× to 2× (−24 to +12 semitones). Its ring lights from the centre, where the pitch is unchanged.
-- **Fine:** ±100 cents on top of Pitch. Modern.
+- **Fine:** ±100 cents on top of Pitch. The original has Coarse and Fine pitch pots; the ±100 cent span is ours.
 - **Crosspoint 1 / 2:** the region the heads play, shown in ms (or note values under Sync). Set Crosspoint 1 deeper than Crosspoint 2 and the region plays in **reverse**.
 - **Feedback:** repeats go back through the pitch shifter, so they climb or fall in pitch.
 - **Vibrato depth / speed / shape.** *SIN* is the original's. *SQR* is modern: in Pitch mode it jumps up by the depth and back, a trill; in Delay mode it alternates up and down, since a delay line can't stay sharp.
@@ -126,7 +132,7 @@ Options: `--mode delay|pitch`, `--stereo true|quasi`, `--range long|short`, `--b
 ## Interface snapshot
 
 ```bash
-build/plugin/the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys]
+build/plugin/the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys|kb]
 ```
 
 Runs audio through the real plugin and renders the panel to a PNG, so you can check the interface without opening FL. The mockups the design came from are in [`docs/design/`](docs/design/).
@@ -148,10 +154,11 @@ Start with [`docs/what-this-is.md`](docs/what-this-is.md) for the plain-English 
 
 [`docs/clone-status.md`](docs/clone-status.md) goes through every behaviour and marks each one as matching, derived from published figures, assumed, or not modelled.
 
-- **Matches or derived:** the two-head crosspoint mechanism, reverse, freeze, feedback through the pitch shifter, the clock-based bandwidth switch and its octave jumps, the 16,384 × 13-bit memory, true and quasi stereo, delay and pitch modes, the treble lift and cut, the short range, the converter and its clip, word-by-word reading, and the published band edges.
+- **Matches or derived:** the two-head crosspoint mechanism, reverse, the memory latch (per side), feedback through the pitch shifter, the clock-based bandwidth switch and its octave jumps, the 16,384 × 13-bit memory, true and quasi stereo, delay and pitch modes (per side), the treble lift and cut, the short range, the converter and its clip, word-by-word reading, the published band edges and delay limits, and delay changes without pitch bend or clicks.
 - **Assumed:** the filter type, the treble-lift curve, how the signal-aware join (Xing) picks its join points, the crossfade curve, and the vibrato ranges. Each is a single named constant, easy to change.
-- **Keyboard:** the KB 2000's pitch control is modelled as a MIDI layer. Its time-stretch, Reverse Synchro and loop scrubbing aren't: nothing published says how they behave.
-- **Not modelled:** the rear-panel control sockets (pitch clock, voltage control, insert loop).
+- **Keyboard:** every section of the KB 2000's panel is modelled, from its panel and brochure: biphonic pitch, envelope, glissando, vibrato, Memory Synchro and Reverse Synchro. Their times and ranges are ours.
+- **Not modelled:** the rear-panel control sockets (pitch clock, voltage control, insert loop), the KB 2000's microphone input, and the drift of the analog pitch oscillator.
+- **Open question:** at some pitch ratios (×0.75, for one) word-by-word reading puts image tones in the audio band, about 4 % distortion on a sine. Publison's brochure quotes 0.2 % in pitch mode. See the clone status page.
 
 Nothing has been compared against a working unit yet. Recordings from one would settle most of the assumptions.
 

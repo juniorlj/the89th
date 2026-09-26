@@ -85,6 +85,25 @@
   - **Risky:** using the protected **trademarks** ("Publison," "DHM 89," "Infernal Machine") in your product name/branding; copying the **exact panel artwork, layout, logo, and distinctive visual "trade dress"**; and copying any **copyrighted manual text, marketing copy, or original schematic drawings** verbatim. Give your plugin an original name, an original UI, and write your own docs.
   - **Practical guidance:** model the algorithm from first principles + the public descriptions; reference the hardware honestly ("inspired by a rare 1978 French pitch-shifting delay") without implying endorsement; don't ship sampled ROM/firmware; you're free to distribute impulse/behavioral matches you derive yourself.
 
+## Primary sources found on video (September 2026)
+
+Added after the research above. Hainbach's "Ahead Of Its Time: Publison DHM89B2 (1978)" (YouTube, with Robert Henke, on Manuel Göttsching's unit) shows, readable at 1080p, Publison's own two-page brochure for the DHM 89 B2 and the KB 2000 (2:24–2:29), the KB 2000's front panel (2:30–2:46, 9:32–9:38) and its rear panel (9:22–9:25). scalenyc's demo shows an early DHM 89 B2 without vibrato in clear light.
+
+**DHM 89 B2, from the brochure and panels:**
+- Pitch shift from two octaves down to one up; delay limits 1200 / 600 / 300 ms at 5 / 10 / 20 kHz; an option extends memory to 5000 ms.
+- Quasi-stereo gives two independent delays from one input, from 1 ms up; true stereo keeps the channels entirely separate.
+- Delay varies continuously without doppler or switching noise.
+- A "micro-computer" handles phase coincidence at the joins to remove glitches (the Xing function).
+- Specifications: 16-bit flying-comma A/D, 95 dB, no analog compander; distortion 0.1 % in delay mode and 0.2 % in pitch mode; memory capacity 210,000 bits; sample rate 52.91 kHz for 20 kHz bandwidth; 3 dB bandwidth selectable at 5, 10 or 20 kHz.
+- Each side has its own Delay, Pitch-Shifter and Memory Latch buttons, with a latch light, and its own display selector: Delay (s), Pitch Ratio, Crosspoint 1 (s), Crosspoint 2 (s). Pitch has Coarse and Fine pots. Later units add Vibrato Speed and Depth pots per side and a Short/Long switch.
+
+**KB 2000, from the brochure and panel:**
+- A three-octave keyboard. Panel sections: mic/keyboard balance and mic level; Keyboard General on/off; Envelope (On / Rem / Off, attack, hold and release times); Pitch Ratio Settings (Left / Right / Biphonic, Sustain or Push/Play, Trimmer, Added Delay, Slope); Memory Synchro (On / Rem / Off, a 1–30 light bar for each side's reading position, per-side on/off, start and end points, speed with a Free position); Reverse Synchro (On / Off, "for use on direct sound only", per-side on/off, noise gate, threshold, delay); Vibrato (On / Rem / Off, frequency, sharpness and depth, each with a modulator amount, and the modulator's attack and release).
+- Rear: a microphone input, an output to a cartridge monitor, and a switch between the DHM's line and the keyboard's microphone.
+- The brochure describes: a three-voice chorus (the original plus two keyed voices, with an adjustable serial delay); Reverse Synchro keeping reversed sound in the original's tempo by following its attacks; a biphonic memory synthesizer (latch a sound, then each note reads it from an attack point and loops between a return point and an end point while it sustains, at a set speed); two envelope generators driving two VCAs; a vibrato whose frequency, sharpness and depth evolve from each note's attack; glissando time between notes; Sustain and Push/Play modes; a Trimmer for the whole keyboard.
+
+How the clone uses all this is in [`clone-status.md`](clone-status.md).
+
 ## Recommendations
 
 1. **Start from PitchLoop89 as your functional spec.** Buy/instantiate it (Live 11+ Suite), and study Henke's technology page + the Ableton interview + Synthtopia masterclass. Reproduce its parameter set first (record head + two moving read heads, Position/Segment, Bandwidth→samplerate octave jumps, Hold, Back, Xing, Fade, Vibrato, Random/LFO position mod), since Henke already solved the hard mapping decisions.
