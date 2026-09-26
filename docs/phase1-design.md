@@ -1,16 +1,21 @@
 # THE89TH: Phase 1 design proposal
 
-Status: **for review. Paused while the clone was finished, and several items are now done as part of the hardware.**
+Status: **built.** Everything in this plan is in, apart from two items dropped on purpose (see below). Each control is neutral by default, so a fresh instance is still the machine.
 
-> **Already done by the clone work** (see [`clone-status.md`](clone-status.md)):
-> - Band-limit filters and converter clip (step 3), in their authentic form.
-> - Per-side controls for pitch, crosspoints, feedback and delay (part of step 4). The hardware had them.
-> - Vibrato (part of step 7): per channel, sine.
-> - Millisecond readouts for delay and crosspoints (part of step 2).
-> - Smoothing (part of step 2): pitch, feedback, vibrato depth and mix glide over 30 ms, and a crosspoint moved past a read head splices it back in rather than clicking. Crosspoints don't glide: they bound the region rather than being heard.
-> - The custom GUI (step 9), now flat black and orange after mockup `design/mockup-02b-digital.png`, with a live display per channel. Built for the hardware's control set; modern controls still need a place in it.
+> **Done:**
+> - Band-limit filters and converter clip (step 3), in their authentic form, as part of the clone.
+> - Per-side pitch, crosspoints, feedback and delay (step 4). The hardware had them.
+> - Units and smoothing (step 2): millisecond readouts; pitch, feedback, vibrato depth, mix and the loop tone glide over 30 ms; a crosspoint moved past a read head splices it back in rather than clicking.
+> - Stereo play (step 4): Link, and Normal / Cross / Sum routing in true stereo.
+> - Feedback tone and drive (step 5): low cut, high cut and drive inside the loop.
+> - Musical pitch and tempo sync (step 6): Fine, Snap, and Sync for Delay and both crosspoints.
+> - Motion (step 7): vibrato sine or square; Scrub by LFO or random.
+> - Presets and A/B (step 8): 14 factory presets, user presets on disk, A/B saved with the project.
+> - The custom GUI (step 9), flat black and orange, with the preset strip and a row for the modern controls.
 >
-> **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, and presets with A/B.
+> **Dropped:**
+> - *Stereo lockstep (step 1)* was already how the clone runs: both sides step together at the internal clock.
+> - *Per-side freeze*: the hardware's latch acts on both channels, and so does ours.
 >
 > **Section 3 is revised** for the clone's parameter set: every existing ID is kept, and the new controls are listed with their final IDs.
 

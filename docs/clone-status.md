@@ -9,6 +9,8 @@ Every behaviour is in one of four states:
 - **Assumed**: the hardware detail isn't published. We made a reasoned choice, and it's defined in one place in the code so it's easy to change.
 - **Not modelled**: left out on purpose.
 
+Modern controls sit on top of the clone (link, feedback routing and tone, snap, fine, sync, scrub, square vibrato, presets). None of them is the hardware. Each is bypassed at its default, so a fresh instance is still exactly what this page describes. They're covered in [`phase1-design.md`](phase1-design.md), not here.
+
 Nothing here has been compared against a working unit. That comparison is the one step that would turn "assumed" into "matches".
 
 ---

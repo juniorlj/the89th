@@ -4,6 +4,7 @@
 #include "dr_wav.h"
 
 #include <the89th/Engine.hpp>
+#include <the89th/Musical.hpp>
 
 #include <cstdio>
 #include <cstdlib>
@@ -21,6 +22,8 @@ struct Options
     int  blockSize = 512;
     bool freezeAfterFill = false;
     bool xing = true;
+    double fineCents = 0.0;
+    the89th::musical::Scale snap = the89th::musical::Scale::Off;
 };
 
 void usage()
@@ -44,6 +47,17 @@ void usage()
         "  --freeze          latch memory from the start\n"
         "  --freeze-after    latch once the input has played through\n"
         "  --block <n>       host block size                      (default 512)\n\n"
+        "Modern controls, all off by default:\n"
+        "  --fine <ct>       cents on top of --pitch, -100 to 100\n"
+        "  --snap <s>        off, chromatic, major, minor or pentatonic\n"
+        "  --vib-shape <s>   sine or square\n"
+        "  --route <r>       normal, cross or sum (true stereo)\n"
+        "  --lowcut <hz>     in the feedback loop, 20 (off) to 2000\n"
+        "  --highcut <hz>    in the feedback loop, 1000 to 20000 (off)\n"
+        "  --drive <v>       in the feedback loop, 0 to 1\n"
+        "  --scrub <v>       region wander, 0 to 1 of its length\n"
+        "  --scrub-rate <hz> (default 0.5)\n"
+        "  --scrub-mode <m>  lfo or random\n\n"
         "Crosspoint 1 deeper than crosspoint 2 plays the region in reverse.\n"
         "20 kHz needs quasi-stereo; in true stereo it falls back to 10 kHz.\n"
         "All channel options set both channels.\n");
@@ -152,6 +166,55 @@ bool parse (int argc, char** argv, Options& o)
             else if (a == "--range"  && w == "short") o.params.range  = the89th::DelayRange::Short;
             else { std::fprintf (stderr, "the89th-render: bad value '%s' for %s\n", w.c_str(), a.c_str()); return false; }
         }
+        else if (a == "--fine")
+        {
+            if (! takeValue()) return false;
+            o.fineCents = v;
+        }
+        else if (a == "--lowcut")
+        {
+            if (! takeValue()) return false;
+            o.params.lowCutHz = v;
+        }
+        else if (a == "--highcut")
+        {
+            if (! takeValue()) return false;
+            o.params.highCutHz = v;
+        }
+        else if (a == "--drive")
+        {
+            if (! takeValue()) return false;
+            o.params.drive = v;
+        }
+        else if (a == "--scrub")
+        {
+            if (! takeValue()) return false;
+            o.params.scrubDepth = v;
+        }
+        else if (a == "--scrub-rate")
+        {
+            if (! takeValue()) return false;
+            o.params.scrubRate = v;
+        }
+        else if (a == "--snap" || a == "--vib-shape" || a == "--route" || a == "--scrub-mode")
+        {
+            if (! hasValue) { std::fprintf (stderr, "the89th-render: %s needs a value\n", a.c_str()); return false; }
+            using the89th::musical::Scale;
+            const std::string w = argv[++i];
+            if      (a == "--snap"       && w == "off")        o.snap = Scale::Off;
+            else if (a == "--snap"       && w == "chromatic")  o.snap = Scale::Chromatic;
+            else if (a == "--snap"       && w == "major")      o.snap = Scale::Major;
+            else if (a == "--snap"       && w == "minor")      o.snap = Scale::Minor;
+            else if (a == "--snap"       && w == "pentatonic") o.snap = Scale::Pentatonic;
+            else if (a == "--vib-shape"  && w == "sine")   L.vibratoShape = R.vibratoShape = the89th::VibratoShape::Sine;
+            else if (a == "--vib-shape"  && w == "square") L.vibratoShape = R.vibratoShape = the89th::VibratoShape::Square;
+            else if (a == "--route"      && w == "normal") o.params.route = the89th::FeedbackRoute::Normal;
+            else if (a == "--route"      && w == "cross")  o.params.route = the89th::FeedbackRoute::Cross;
+            else if (a == "--route"      && w == "sum")    o.params.route = the89th::FeedbackRoute::Sum;
+            else if (a == "--scrub-mode" && w == "lfo")    o.params.scrubMode = the89th::ScrubMode::Lfo;
+            else if (a == "--scrub-mode" && w == "random") o.params.scrubMode = the89th::ScrubMode::Random;
+            else { std::fprintf (stderr, "the89th-render: bad value '%s' for %s\n", w.c_str(), a.c_str()); return false; }
+        }
         else if (a == "--no-xing")
         {
             o.xing = false;
@@ -171,6 +234,8 @@ bool parse (int argc, char** argv, Options& o)
         }
     }
 
+    // Snap and fine act on the pitch knob, as in the plugin.
+    L.pitchRatio = R.pitchRatio = the89th::musical::pitchRatio (L.pitchRatio, o.snap, o.fineCents);
     return true;
 }
 

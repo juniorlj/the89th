@@ -104,11 +104,31 @@ It also settled the storage format. The original stored sound in an unusual form
 
 ---
 
+## What got added on top
+
+Once the clone was done, modern controls went on top. None of them is on the original, and each does nothing at its default, so a fresh instance still behaves exactly like the 1978 box. You can add one modern feature at a time rather than switching the whole thing into a "modern mode".
+
+**Presets and A/B.** Fourteen factory sounds to start from, and your own saved as files. A/B holds two settings so you can flip between them while you tweak. Both are saved with the FL project.
+
+**Where the repeats go.** Normally each side feeds its own repeats back into itself, as on the original. *Cross* sends each side's repeats to the other side, so they ping-pong. *Sum* sends both to both.
+
+**Colour in the loop.** A low cut, a high cut and drive sit inside the feedback loop, so they act again on every repeat. A high cut makes each repeat a little darker than the last, like tape echoes. Drive thickens the repeats and rounds off the loud ones, which also stops a loop at full feedback from running away.
+
+**Musical pitch.** *Snap* pulls the pitch knobs onto a scale, so a harmony lands on a real note. *Fine* nudges each side by up to a semitone, for detuned doubling.
+
+**Tempo sync.** Delay and both crosspoints step through note values at FL's tempo instead of milliseconds. The memory is short (about a third of a second per side at 10 kHz), so long notes don't fit; they play at the longest length that does and the panel says *> MAX*. That shortness is part of the machine, so it isn't hidden.
+
+**Scrub.** Moves the looping region back and forth through memory by itself, smoothly or at random. On a frozen loop it turns one moment of sound into a moving texture.
+
+**Square vibrato.** In pitch mode it jumps up by the depth and back, a trill.
+
+**Link.** Channel 2 copies every channel 1 control, so you set one side and get both.
+
 ## What you have
 
 A VST3, installed and ready. Mac, Apple Silicon. A Standalone app, and a command-line renderer that turns a WAV into a WAV so you can compare settings without opening a DAW.
 
-The controls match the original's panel. The global switches are Mode, Stereo, Range, Bandwidth, Freeze and Mix. Each channel gets Delay, Pitch, both Crosspoints, Feedback and Vibrato. There's also Init. Delay and crosspoints read in milliseconds.
+The original's controls are all there: the global switches Mode, Stereo, Range, Bandwidth, Freeze and Mix, and per channel Delay, Pitch, both Crosspoints, Feedback and Vibrato. Init resets everything. Delay and crosspoints read in milliseconds, or in note values under Sync. The modern controls above sit in their own row and in each channel, and the preset strip runs along the top.
 
 ## What the panel looks like, and why
 
@@ -121,12 +141,14 @@ What's worth knowing when you use it:
 - **Controls that do nothing in the current mode fade** instead of disappearing, so nothing moves under your hand. In Pitch mode the Delay knob fades. In Delay mode, Pitch and the crosspoints fade, unless Freeze is on, because a frozen loop still uses them.
 - **Freeze lights solid orange** while it's holding the loop.
 
-70 automated tests. The ones that matter most:
+99 automated tests, and a stress test in a simulated host (pluginval) at its strictest level. The ones that matter most:
 
 - At pitch 1.0, and in delay mode, the sound comes out **identical**, bit for bit, apart from the storage format's own grain. The tests check that too.
 - A 440 Hz tone at pitch 2.0 comes out at 880 Hz, to within 1%.
 - A click sent through the whole plugin comes out exactly when the delay setting says it should. This test caught a bug that had been there since Phase 0: for the first pass through memory, part of the output was a whole memory's length late. A steady tone hid it completely.
 - The false tone at 5 kHz bandwidth is over 150 dB down, and each band edge lands within 1 dB of its published point.
 - With the smart join on, the level stays flat through every join on a steady tone.
+- With every modern control at its default, the machine behaves exactly as before they existed: all the earlier tests pass untouched.
+- A saved project comes back byte for byte, presets and A/B included.
 
 Several of these tests found real bugs while this was being built, and each bug looked correct on paper.
