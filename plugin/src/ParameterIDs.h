@@ -28,6 +28,10 @@ inline constexpr const char* scrubDepth = "scrub_depth";
 inline constexpr const char* scrubRate  = "scrub_rate";
 inline constexpr const char* scrubMode  = "scrub_mode";
 
+// Keyboard layer (the KB 2000's pitch control). Off by default.
+inline constexpr const char* keys       = "keys";
+inline constexpr const char* keysRoot   = "keys_root";
+
 /** Per-channel controls. Index 0 is left, 1 is right. */
 struct Channel
 {

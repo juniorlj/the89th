@@ -100,7 +100,9 @@ It also settled the storage format. The original stored sound in an unusual form
 
 **The short range and vibrato.** Later units had a switch that divides the delay range by ten, for doubling and flanging. They also had vibrato depth and speed per channel. Both are in.
 
-**What's still missing:** the rear-panel control sockets and the keyboard that plugged into them. They control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those we made reasoned choices and wrote them down. [`clone-status.md`](clone-status.md) lists each one.
+**The keyboard.** The original had a companion keyboard that played its pitch. Ours takes MIDI instead. Hold a key and the channel plays at that key's pitch; lift every key and the channel goes quiet and holds its memory, exactly as the hardware did at note-off. So a frozen loop becomes something you can play like a sampler. It's off by default.
+
+**What's still missing:** the rear-panel control sockets, and the keyboard's time-stretch and reverse tricks, which nobody has described well enough to copy. The sockets control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those we made reasoned choices and wrote them down. [`clone-status.md`](clone-status.md) lists each one.
 
 ---
 

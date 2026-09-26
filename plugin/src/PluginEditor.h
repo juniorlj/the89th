@@ -75,6 +75,9 @@ private:
     ButtonGroup route_, snap_, scrubMode_;
     Knob lowCut_, highCut_, drive_, scrubDepth_, scrubRate_;
     PushButton sync_, link_;
+
+    ButtonGroup keys_;
+    Knob keysRoot_;
     std::array<std::unique_ptr<ChannelUI>, 2> ch_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thEditor)

@@ -55,7 +55,9 @@ The89thEditor::The89thEditor (The89thProcessor& p)
       scrubDepth_ (p.apvts, pid::scrubDepth, "Depth"),
       scrubRate_  (p.apvts, pid::scrubRate,  "Speed"),
       sync_       (p.apvts, pid::sync,       "Sync",   PushButton::Style::Chip),
-      link_       (p.apvts, pid::link,       "Link",   PushButton::Style::Chip)
+      link_       (p.apvts, pid::link,       "Link",   PushButton::Style::Chip),
+      keys_       (p.apvts, pid::keys,       "Channels",  { "OFF", "L+R", "L", "R" }),
+      keysRoot_   (p.apvts, pid::keysRoot,   "Root")
 {
     setLookAndFeel (&lnf_);
 
@@ -64,7 +66,7 @@ The89thEditor::The89thEditor (The89thProcessor& p)
                                                              &route_, &lowCut_, &highCut_, &drive_,
                                                              &snap_, &sync_,
                                                              &scrubDepth_, &scrubRate_, &scrubMode_,
-                                                             &link_ })
+                                                             &link_, &keys_, &keysRoot_ })
         addAndMakeVisible (c);
 
     for (int c = 0; c < 2; ++c)
@@ -117,6 +119,11 @@ void The89thEditor::refresh()
             for (auto* k : std::initializer_list<juce::Component*> { &ui.pitch, &ui.fine, &ui.xp1, &ui.xp2 })
                 k->setAlpha (traversal ? 1.0f : 0.35f);
         }
+
+        // Played from the keyboard, a channel's Pitch knob is disconnected, as
+        // the hardware's pot was by an external pitch clock. Fine still trims.
+        if (t.voice[c].key.load() != -2)
+            ui.pitch.setAlpha (0.35f);
     }
 }
 
@@ -187,9 +194,10 @@ void The89thEditor::paint (juce::Graphics& g)
     g.fillRect (R (kMargin, 64, 1100 - 2 * kMargin, 1));
 
     // The machine.
-    section (g, R (kMargin, 84, 700, 94), "SYSTEM");
-    section (g, R (kMargin + 716, 84, 170, 94), "LATCH");
-    section (g, R (kMargin + 902, 84, 150, 94), "OUTPUT");
+    section (g, R (kMargin, 84, 562, 94), "SYSTEM");
+    section (g, R (kMargin + 574, 84, 136, 94), "LATCH");
+    section (g, R (kMargin + 722, 84, 110, 94), "OUTPUT");
+    section (g, R (kMargin + 844, 84, 208, 94), "KEYS");
 
     // Modern controls, all neutral by default.
     section (g, R (kMargin, 198, 460, 94), "FEEDBACK LOOP");
@@ -220,12 +228,14 @@ void The89thEditor::resized()
     presetBar_.setBounds (R (236, 20, 572, 30));
     init_.setBounds (R (1022, 14, 54, 46));
 
-    mode_.setBounds      (R (kMargin + 18,  98, 150, 70));
-    stereo_.setBounds    (R (kMargin + 190, 98, 150, 70));
-    range_.setBounds     (R (kMargin + 362, 98, 150, 70));
-    bandwidth_.setBounds (R (kMargin + 534, 98, 150, 70));
-    freeze_.setBounds    (R (kMargin + 736, 106, 130, 52));
-    mix_.setBounds       (R (kMargin + 928, 92, 98, 84));
+    mode_.setBounds      (R (kMargin + 14,  98, 118, 70));
+    stereo_.setBounds    (R (kMargin + 142, 98, 118, 70));
+    range_.setBounds     (R (kMargin + 270, 98, 118, 70));
+    bandwidth_.setBounds (R (kMargin + 398, 98, 150, 70));
+    freeze_.setBounds    (R (kMargin + 586, 106, 112, 52));
+    mix_.setBounds       (R (kMargin + 730, 92, 94, 84));
+    keys_.setBounds      (R (kMargin + 854, 98, 126, 70));
+    keysRoot_.setBounds  (R (kMargin + 984, 92, 64, 84));
 
     // FEEDBACK LOOP
     route_.setBounds   (R (kMargin + 16,  212, 162, 70));

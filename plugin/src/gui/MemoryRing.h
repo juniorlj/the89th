@@ -38,6 +38,7 @@ private:
         int   words = 8192;
         bool  traversal = true, splicing = false, reversed = false;
         bool  frozen = false, delayMode = false, quasi = false;
+        int   key = -2;
     };
 
     float angleOf (float delayWords) const;

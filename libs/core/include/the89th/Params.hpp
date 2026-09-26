@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "Spec.hpp"
 
 namespace the89th
@@ -111,11 +113,19 @@ struct EngineParams
     double highCutHz = kHighCutOffHz;
     double drive     = 0.0;  // 0..1
 
+    /** Keyboard layer, per channel. The gate scales that channel's wet output:
+        1 is open, 0 is the hardware's muted note-off. Pitch glide is how long a
+        pitch change takes to land; a keyboard wants 0, as the hardware's pitch
+        clock jumped. Defaults are neutral: open, and the engine's usual glide. */
+    std::array<double, 2> gate              { 1.0, 1.0 };
+    std::array<double, 2> pitchGlideSeconds { kDefaultPitchGlide, kDefaultPitchGlide };
+
     /** Moves both crosspoints together, as a share of the region's length. */
     double    scrubDepth = 0.0;  // 0..1
     double    scrubRate  = 0.5;  // Hz
     ScrubMode scrubMode  = ScrubMode::Lfo;
 
+    static constexpr double kDefaultPitchGlide = 0.03;
     static constexpr double kLowCutOffHz  = 20.0;
     static constexpr double kHighCutOffHz = 20000.0;
 };

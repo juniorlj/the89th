@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <the89th/Engine.hpp>
+#include <the89th/Keys.hpp>
 #include <the89th/Musical.hpp>
 
 #include "Presets.h"
@@ -37,7 +38,7 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return "THE89TH"; }
-    bool acceptsMidi() const override  { return false; }
+    bool acceptsMidi() const override  { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 4.0; }
@@ -124,6 +125,15 @@ private:
     std::atomic<float>* scrubDepth_ = nullptr;
     std::atomic<float>* scrubRate_  = nullptr;
     std::atomic<float>* scrubMode_  = nullptr;
+    std::atomic<float>* keys_       = nullptr;
+    std::atomic<float>* keysRoot_   = nullptr;
+
+    /** Keyboard state. Touched only on the audio thread; the editor reads the
+        sounding key through telemetry. */
+    the89th::keys::NoteStack notes_;
+    double bend_ = 0.0;   // semitones
+
+    void handleMidi (const juce::MidiMessage&) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thProcessor)
 };

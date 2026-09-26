@@ -213,6 +213,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         ParameterID { pid::scrubMode, 3 }, "Scrub mode",
         StringArray { "LFO", "Random" }, 0));
 
+    // ─── Keyboard layer ─────────────────────────────────────────────────────
+    // MIDI notes play the pitch, as the KB 2000 did: a held key replaces the
+    // Pitch knob on the channels it drives, and with no key held they latch and
+    // mute, the hardware's note-off. Off leaves the machine exactly as it is.
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::keys, 4 }, "Keys",
+        StringArray { "Off", "L+R", "Left", "Right" }, 0));
+
+    layout.add (std::make_unique<AudioParameterInt> (
+        ParameterID { pid::keysRoot, 4 }, "Keys root", 24, 96, 60,
+        AudioParameterIntAttributes{}.withStringFromValueFunction ([] (int n, int)
+        {
+            // Middle C (60) as C3, the convention Henke's re-creation anchors on.
+            return juce::MidiMessage::getMidiNoteName (n, true, true, 3);
+        })));
+
     // Not automatable: a host automation lane or a "randomise" should never be
     // able to wipe every setting and the memory mid-song. The panel button
     // still works.
@@ -261,6 +277,8 @@ The89thProcessor::The89thProcessor()
     scrubDepth_ = apvts.getRawParameterValue (pid::scrubDepth);
     scrubRate_  = apvts.getRawParameterValue (pid::scrubRate);
     scrubMode_  = apvts.getRawParameterValue (pid::scrubMode);
+    keys_       = apvts.getRawParameterValue (pid::keys);
+    keysRoot_   = apvts.getRawParameterValue (pid::keysRoot);
 
     apvts.addParameterListener (pid::init, this);
     updateReadout();
@@ -400,7 +418,49 @@ the89th::EngineParams The89thProcessor::readParams() const
     p.scrubRate  = get (scrubRate_, 0.5f);
     p.scrubMode  = get (scrubMode_, 0.0f) > 0.5f ? the89th::ScrubMode::Random : the89th::ScrubMode::Lfo;
 
+    // Keyboard: a held key takes over the Pitch knob, landing at once as the
+    // hardware's pitch clock did; no key held latches and mutes. Fine still
+    // trims the tuning. Channels the keyboard doesn't drive are untouched.
+    const int keys = static_cast<int> (get (keys_, 0.0f));
+    if (keys != 0)
+    {
+        const bool drives[2] = { keys == 1 || keys == 2, keys == 1 || keys == 3 };
+        const int  root = static_cast<int> (get (keysRoot_, 60.0f));
+        for (std::size_t c = 0; c < 2; ++c)
+        {
+            if (! drives[c])
+                continue;
+
+            auto& cp = *out[c];
+            p.pitchGlideSeconds[c] = 0.0;
+            if (notes_.active())
+            {
+                const auto& raw = ch_[linked ? 0 : c];
+                cp.pitchRatio = mus::pitchRatio (the89th::keys::ratio (notes_.current(), root, bend_),
+                                                 mus::Scale::Off, get (raw.fine, 0.0f));
+                p.gate[c] = 1.0;
+            }
+            else
+            {
+                cp.freeze = true;
+                p.gate[c] = 0.0;
+            }
+        }
+    }
+
     return p;
+}
+
+void The89thProcessor::handleMidi (const juce::MidiMessage& m) noexcept
+{
+    if (m.isNoteOn())
+        notes_.press (m.getNoteNumber());
+    else if (m.isNoteOff())
+        notes_.release (m.getNoteNumber());
+    else if (m.isPitchWheel())
+        bend_ = the89th::keys::bendSemitones (m.getPitchWheelValue());
+    else if (m.isAllNotesOff() || m.isAllSoundOff())
+        notes_.clear();
 }
 
 void The89thProcessor::updateReadout()
@@ -422,7 +482,7 @@ void The89thProcessor::updateReadout()
     readout_.snap.store (static_cast<int> (get (snap_, 0.0f)));
 }
 
-void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
 
@@ -430,7 +490,11 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         buffer.clear (ch, 0, buffer.getNumSamples());
 
     if (resetRequested_.exchange (false))
+    {
         engine_.reset();
+        notes_.clear();
+        bend_ = 0.0;
+    }
 
     // Sync follows the host's tempo; without a playhead it runs at 120.
     if (auto* head = getPlayHead())
@@ -439,11 +503,38 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
                 readout_.bpm.store (*bpm);
 
     updateReadout();
-    engine_.setParams (readParams());
 
-    engine_.process (buffer.getArrayOfWritePointers(),
-                     buffer.getNumChannels(),
-                     buffer.getNumSamples());
+    const int n     = buffer.getNumSamples();
+    const int chans = buffer.getNumChannels();
+    auto* const* io = buffer.getArrayOfWritePointers();
+
+    // With the keyboard on, the block runs in pieces split at each MIDI event,
+    // so a key lands on the sample it was played rather than the next block.
+    const bool keysOn = keys_ != nullptr && keys_->load() > 0.5f;
+    int done = 0;
+    auto runTo = [&] (int end)
+    {
+        if (end <= done)
+            return;
+        engine_.setParams (readParams());
+        float* piece[2] = { io[0] + done, chans > 1 ? io[1] + done : io[0] + done };
+        engine_.process (piece, chans, end - done);
+        done = end;
+    };
+
+    if (keysOn)
+    {
+        for (const auto meta : midi)
+        {
+            runTo (juce::jlimit (0, n, meta.samplePosition));
+            handleMidi (meta.getMessage());
+        }
+    }
+    else if (notes_.active())
+    {
+        notes_.clear();  // switched off mid-note: nothing stays held
+    }
+    runTo (n);
 
     publishTelemetry (buffer);
 }
@@ -463,6 +554,12 @@ void The89thProcessor::publishTelemetry (const juce::AudioBuffer<float>& buffer)
 
     for (int c = 0; c < 2; ++c)
     {
+        {
+            const int keys = keys_ != nullptr ? static_cast<int> (keys_->load()) : 0;
+            const bool drives = keys == 1 || (keys == 2 && c == 0) || (keys == 3 && c == 1);
+            telemetry_.voice[static_cast<std::size_t> (c)].key.store (drives ? notes_.current() : -2);
+        }
+
         const auto ci = static_cast<std::size_t> (c);
         const auto& mem = m.memory (quasi ? 0 : c);
         telemetry_.writePos[ci].store (static_cast<float> (mem.writeIndex()) / static_cast<float> (mem.words()));

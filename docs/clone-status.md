@@ -50,14 +50,14 @@ Nothing here has been compared against a working unit. That comparison is the on
 | Vibrato | Sine; depth 0–2 semitones; speed 0.1–10 Hz; same peak deviation in both modes | Later units had depth and speed pots; shape and ranges unpublished | `ReadVoice`, plugin ranges |
 | Quasi-stereo input | Mono sum of left and right | "One input" feeds both sides; which pin is unclear | `Machine::step` |
 | Freeze | One latch for both channels | The rear connector's latch acts on both | Plugin |
+| Keyboard pitch (KB 2000) | MIDI: a held key replaces the Pitch knob, root C3 at unity, a semitone per key within 0.25x to 2x; no key held latches and mutes, with a 5 ms fade; last-note priority; ±2 st bend | The research: an external pitch clock disconnects the pot, and holding the pitch input high latches and mutes, used for keyboard note-off. Root, bend range and note priority are assumed | `Keys.hpp`, plugin |
 
 ## Not modelled
 
 | Feature | Why |
 |---|---|
 | External TTL pitch clock (26–212 kHz), CV inputs for delay and crosspoints, ISS, insertion loop | These are ways of controlling the machine or patching into it, not part of its sound. A MIDI layer could stand in later |
-| Pitch input held high mutes and latches | Same: it's a control-interface behaviour |
-| KB 2000 keyboard companion | Separate device |
+| KB 2000's time-stretch playback, Reverse Synchro, LFO loop scrubbing | Named in the research but not described anywhere; building them would mean inventing them |
 | D/A zero-order-hold droop | The published response is +0/−3 dB overall, so whatever droop existed is folded into the filters |
 | Unit-to-unit differences (6-knob vs 8-knob panels, RAM variants, expanded 5 s memory) | We clone one configuration: a later unit, standard memory |
 

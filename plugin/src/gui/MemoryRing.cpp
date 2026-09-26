@@ -1,6 +1,8 @@
 #include "MemoryRing.h"
 #include "Theme.h"
 
+#include <juce_audio_basics/juce_audio_basics.h>
+
 #include <cmath>
 
 namespace
@@ -49,6 +51,7 @@ void MemoryRing::refresh()
     v_.frozen    = t_.frozen.load();
     v_.delayMode = t_.delayMode.load();
     v_.quasi     = t_.quasi.load();
+    v_.key       = tv.key.load();
 
     const float peak = tv.peak.load();
     v_.level = peak > v_.level ? peak : v_.level * 0.86f;
@@ -97,8 +100,14 @@ void MemoryRing::paint (juce::Graphics& g)
     const float ratio     = std::fabs (v_.rate);
 
     // Top line: channel, state, the one number that matters.
-    const juce::String state = v_.frozen ? "LATCH" : (pitchPath ? (v_.reversed ? "REV" : "PITCH") : "DELAY");
-    text (title_ + "  " + state, top, juce::Justification::centredLeft, v_.frozen ? theme::orange : theme::textDim, 10.0f);
+    // Driven by the keyboard, the state is the key, or MUTE with none held.
+    const juce::String state = v_.key >= 0   ? "KEY " + juce::MidiMessage::getMidiNoteName (v_.key, true, true, 3)
+                             : v_.key == -1  ? juce::String ("MUTE")
+                             : v_.frozen     ? juce::String ("LATCH")
+                             : pitchPath     ? juce::String (v_.reversed ? "REV" : "PITCH")
+                                             : juce::String ("DELAY");
+    text (title_ + "  " + state, top, juce::Justification::centredLeft,
+          (v_.frozen || v_.key >= 0) ? theme::orange : theme::textDim, 10.0f);
 
     juce::String reading;
     if (pitchPath)

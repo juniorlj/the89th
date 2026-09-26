@@ -2,7 +2,8 @@
 //
 //   the89th-snapshot out.png [width] [scene]
 //
-// Scenes: pitch (default), delay, freeze, quasi, modern (a factory preset
+// Scenes: pitch (default), delay, freeze, quasi, keys (the keyboard holding
+// a fifth above the root), modern (a factory preset
 // using the modern controls, with Link on). Audio is run through the real
 // processor first so the rings show a live state, stopping mid-splice where
 // the scene has splices.
@@ -22,6 +23,8 @@ void set (The89thProcessor& p, const char* id, float value)
     param->setValueNotifyingHost (param->convertTo0to1 (value));
 }
 
+int heldNote = -1;   // the "keys" scene holds this key down
+
 void runAudio (The89thProcessor& p, int blocks, bool stopMidSplice)
 {
     juce::AudioBuffer<float> b (2, 512);
@@ -40,7 +43,10 @@ void runAudio (The89thProcessor& p, int blocks, bool stopMidSplice)
             b.setSample (0, i, x);
             b.setSample (1, i, x);
         }
+        if (heldNote >= 0 && k == 0)
+            midi.addEvent (juce::MidiMessage::noteOn (1, heldNote, 1.0f), 0);
         p.processBlock (b, midi);
+        midi.clear();
 
         if (stopMidSplice && k >= blocks && p.telemetry().voice[0].splicing.load()
             && p.telemetry().voice[0].gainB.load() > 0.3f)
@@ -53,7 +59,7 @@ int main (int argc, char** argv)
 {
     if (argc < 2)
     {
-        std::fprintf (stderr, "usage: the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern]\n");
+        std::fprintf (stderr, "usage: the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys]\n");
         return 1;
     }
 
@@ -67,7 +73,15 @@ int main (int argc, char** argv)
     p.prepareToPlay (48000.0, 512);
 
     bool splices = true;
-    if (scene == "modern")
+    if (scene == "keys")
+    {
+        set (p, pid::keys, 1.0f);
+        set (p, pid::channel[0].crosspoint2, 0.4f);
+        set (p, pid::channel[1].crosspoint2, 0.4f);
+        heldNote = 67;   // a fifth above the C3 root
+        splices = false;
+    }
+    else if (scene == "modern")
     {
         const auto& list = p.presets.entries();
         for (int i = 0; i < static_cast<int> (list.size()); ++i)

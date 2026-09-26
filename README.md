@@ -72,6 +72,14 @@ The panel opens at 1100 × 800 and resizes from 880 to 1760 wide, keeping its pr
 - **Mix** goes from dry to wet.
 - **Init** returns every control to its default and clears the memory. Hosts can't automate it, so a stray automation lane can't wipe a song's settings.
 
+**KEYS** plays the pitch from a MIDI keyboard, as the original's KB 2000 keyboard companion did.
+- **Channels:** *Off* (the default, MIDI ignored), *L+R*, *L* or *R*: which channels the keyboard plays.
+- **Root:** the key that plays at the original pitch, C3 by default. Each key above or below is a semitone, within the machine's range of −24 to +12. Pitch bend adds ±2 semitones.
+- A held key replaces that channel's Pitch knob, which fades on the panel. Fine still trims the tuning. The newest key sounds; lift it and the one held before comes back.
+- With no key held, the channel **latches and mutes**, as the hardware did when its pitch input was held high. The memory keeps what was playing, so the next key replays it at a new pitch. Add Freeze and the keyboard plays a frozen loop like a sampler.
+- Notes land on the exact sample they're played, and the mute fades over 5 ms so it doesn't click. The display shows the key, or MUTE.
+- In FL, effects get MIDI by port: add a **MIDI Out** channel, give it a port number, and set the same number as this plugin's MIDI input port in its wrapper settings (gear icon). Notes on the MIDI Out channel, or your keyboard with it selected, then play the plugin.
+
 The next row is modern additions, not on the original. Each one does nothing at its default, so a fresh instance is still the 1978 machine.
 
 **FEEDBACK LOOP**
@@ -118,7 +126,7 @@ Options: `--mode delay|pitch`, `--stereo true|quasi`, `--range long|short`, `--b
 ## Interface snapshot
 
 ```bash
-build/plugin/the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern]
+build/plugin/the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys]
 ```
 
 Runs audio through the real plugin and renders the panel to a PNG, so you can check the interface without opening FL. The mockups the design came from are in [`docs/design/`](docs/design/).
@@ -142,13 +150,13 @@ Start with [`docs/what-this-is.md`](docs/what-this-is.md) for the plain-English 
 
 - **Matches or derived:** the two-head crosspoint mechanism, reverse, freeze, feedback through the pitch shifter, the clock-based bandwidth switch and its octave jumps, the 16,384 × 13-bit memory, true and quasi stereo, delay and pitch modes, the treble lift and cut, the short range, the converter and its clip, word-by-word reading, and the published band edges.
 - **Assumed:** the filter type, the treble-lift curve, how the signal-aware join (Xing) picks its join points, the crossfade curve, and the vibrato ranges. Each is a single named constant, easy to change.
-- **Not modelled:** the rear-panel control sockets (pitch clock, voltage control, insert loop) and the KB 2000 keyboard.
+- **Keyboard:** the KB 2000's pitch control is modelled as a MIDI layer. Its time-stretch, Reverse Synchro and loop scrubbing aren't: nothing published says how they behave.
+- **Not modelled:** the rear-panel control sockets (pitch clock, voltage control, insert loop).
 
 Nothing has been compared against a working unit yet. Recordings from one would settle most of the assumptions.
 
 ## Next
 
-- Keyboard pitch control (the KB 2000 layer): MIDI notes set the pitch, note-off latches and mutes. Parked for now.
 - Recordings from a working unit, to settle the assumed parts of the clone.
 
 ## Git

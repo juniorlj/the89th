@@ -18,6 +18,7 @@ add_executable(the89th_tests
     test_machine.cpp
     test_glide.cpp
     test_modern.cpp
+    test_keys.cpp
 )
 
 target_link_libraries(the89th_tests PRIVATE

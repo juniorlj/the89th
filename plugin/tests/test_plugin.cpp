@@ -514,3 +514,181 @@ TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugi
         REQUIRE (img.getWidth() == w);
     }
 }
+
+// ─── Keyboard layer ─────────────────────────────────────────────────────────
+
+namespace
+{
+void setChoice (The89thProcessor& p, const char* id, float value)
+{
+    auto* param = p.apvts.getParameter (id);
+    param->setValueNotifyingHost (param->convertTo0to1 (value));
+}
+
+/** Runs one 512-sample block of a 330 Hz tone (or silence) with the given MIDI. */
+void block (The89thProcessor& p, juce::AudioBuffer<float>& b, juce::MidiBuffer& midi, long long& t, bool tone)
+{
+    for (int i = 0; i < b.getNumSamples(); ++i, ++t)
+    {
+        const float x = tone ? 0.5f * static_cast<float> (std::sin (2.0 * M_PI * 330.0 * static_cast<double> (t) / 48000.0)) : 0.0f;
+        b.setSample (0, i, x);
+        b.setSample (1, i, x);
+    }
+    p.processBlock (b, midi);
+    midi.clear();
+}
+
+float peak (const juce::AudioBuffer<float>& b, int from = 0)
+{
+    return b.getMagnitude (0, from, b.getNumSamples() - from);
+}
+
+/** Frequency from positive-going zero crossings over a run of blocks. */
+double measureHz (The89thProcessor& p, long long& t, int blocks)
+{
+    juce::AudioBuffer<float> b (2, 512);
+    juce::MidiBuffer none;
+    int crossings = 0;
+    float prev = 0.0f;
+    for (int k = 0; k < blocks; ++k)
+    {
+        block (p, b, none, t, true);
+        for (int i = 0; i < 512; ++i)
+        {
+            const float y = b.getSample (0, i);
+            if (prev <= 0.0f && y > 0.0f)
+                ++crossings;
+            prev = y;
+        }
+    }
+    return crossings * 48000.0 / (blocks * 512.0);
+}
+} // namespace
+
+TEST_CASE ("with Keys off, MIDI changes nothing", "[plugin][keys]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+
+    auto render = [] (bool sendMidi)
+    {
+        The89thProcessor p;
+        p.prepareToPlay (48000.0, 512);
+        setChoice (p, pid::crosspoint2, 0.2f);
+        juce::AudioBuffer<float> b (2, 512), out (2, 512 * 40);
+        juce::MidiBuffer midi;
+        long long t = 0;
+        for (int k = 0; k < 40; ++k)
+        {
+            if (sendMidi && k == 5)  midi.addEvent (juce::MidiMessage::noteOn (1, 72, 1.0f), 100);
+            if (sendMidi && k == 20) midi.addEvent (juce::MidiMessage::noteOff (1, 72), 50);
+            block (p, b, midi, t, true);
+            for (int ch = 0; ch < 2; ++ch)
+                out.copyFrom (ch, k * 512, b, ch, 0, 512);
+        }
+        return out;
+    };
+
+    const auto a = render (false), b = render (true);
+    int mismatches = 0;
+    for (int ch = 0; ch < 2; ++ch)
+        for (int i = 0; i < a.getNumSamples(); ++i)
+            if (! std::equal_to<float> {} (a.getSample (ch, i), b.getSample (ch, i)))
+                ++mismatches;
+    REQUIRE (mismatches == 0);
+}
+
+TEST_CASE ("keys: silent until a key, the key sets the pitch, release latches and mutes", "[plugin][keys]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+    setChoice (p, pid::keys, 1.0f);             // L+R
+    setChoice (p, pid::crosspoint2, 0.15f);     // a short loop, ~46 ms
+
+    juce::AudioBuffer<float> b (2, 512);
+    juce::MidiBuffer midi;
+    long long t = 0;
+
+    // No key held: latched and muted, whatever comes in.
+    for (int k = 0; k < 20; ++k)
+        block (p, b, midi, t, true);
+    REQUIRE (peak (b) < 1e-5f);
+
+    // Root plus an octave: the tone comes back an octave up.
+    midi.addEvent (juce::MidiMessage::noteOn (1, 72, 1.0f), 0);
+    block (p, b, midi, t, true);
+    for (int k = 0; k < 20; ++k)
+        block (p, b, midi, t, true);
+    REQUIRE (peak (b) > 0.1f);
+    REQUIRE (measureHz (p, t, 40) == Approx (660.0).epsilon (0.03));
+
+    // Release: muted within the fade, and the memory is latched.
+    midi.addEvent (juce::MidiMessage::noteOff (1, 72), 0);
+    block (p, b, midi, t, true);
+    block (p, b, midi, t, true);
+    REQUIRE (peak (b) < 1e-5f);
+
+    // With the input now silent, a new key plays back what was latched.
+    for (int k = 0; k < 10; ++k)
+        block (p, b, midi, t, false);
+    midi.addEvent (juce::MidiMessage::noteOn (1, 60, 1.0f), 0);
+    block (p, b, midi, t, false);
+    block (p, b, midi, t, false);
+    REQUIRE (peak (b) > 0.1f);
+}
+
+TEST_CASE ("keys: a note lands on its own sample, not the next block", "[plugin][keys]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+    setChoice (p, pid::keys, 1.0f);
+    setChoice (p, pid::crosspoint2, 0.05f);
+
+    juce::AudioBuffer<float> b (2, 512);
+    juce::MidiBuffer midi;
+    long long t = 0;
+
+    // Fill the memory with the gate shut, then open it mid-block.
+    midi.addEvent (juce::MidiMessage::noteOn (1, 60, 1.0f), 0);
+    block (p, b, midi, t, true);
+    for (int k = 0; k < 10; ++k)
+        block (p, b, midi, t, true);
+    midi.addEvent (juce::MidiMessage::noteOff (1, 60), 0);
+    block (p, b, midi, t, true);
+    block (p, b, midi, t, true);
+
+    midi.addEvent (juce::MidiMessage::noteOn (1, 60, 1.0f), 300);
+    block (p, b, midi, t, true);
+
+    REQUIRE (b.getMagnitude (0, 0, 300) < 1e-5f);    // still shut before the note
+    REQUIRE (b.getMagnitude (0, 300, 212) > 0.05f);  // opening from sample 300
+}
+
+TEST_CASE ("keys: root follows its parameter, and routing picks the channel", "[plugin][keys]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+    setChoice (p, pid::keys, 2.0f);             // Left only
+    setChoice (p, pid::keysRoot, 48.0f);        // C2 is unity
+    setChoice (p, pid::channel[0].crosspoint2, 0.15f);
+    setChoice (p, pid::channel[1].crosspoint2, 0.15f);
+
+    REQUIRE (p.apvts.getParameter (pid::keysRoot)->getCurrentValueAsText() == "C2");
+
+    juce::AudioBuffer<float> b (2, 512);
+    juce::MidiBuffer midi;
+    long long t = 0;
+
+    // Right isn't driven, so it plays on with no key; left is muted.
+    for (int k = 0; k < 20; ++k)
+        block (p, b, midi, t, true);
+    REQUIRE (b.getMagnitude (0, 0, 512) < 1e-5f);
+    REQUIRE (b.getMagnitude (1, 0, 512) > 0.1f);
+
+    // Key 48 is the new root: unity, so left comes back at the input's pitch.
+    midi.addEvent (juce::MidiMessage::noteOn (1, 48, 1.0f), 0);
+    block (p, b, midi, t, true);
+    REQUIRE (measureHz (p, t, 40) == Approx (330.0).epsilon (0.03));
+}
