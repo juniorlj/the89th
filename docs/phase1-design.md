@@ -12,7 +12,7 @@ Status: **for review. Paused while the clone was finished, and several items are
 >
 > **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, and presets with A/B.
 >
-> **Parameter IDs** below predate the clone work. The plugin now uses `pitch`/`pitch_r` as a ratio (the hardware's control), plus `delay`, `mode`, `stereo`, `range` and the vibrato IDs. Revise section 3 before building.
+> **Section 3 is revised** for the clone's parameter set: every existing ID is kept, and the new controls are listed with their final IDs.
 
 Scope: everything you picked.
 
@@ -28,13 +28,14 @@ Every modern control has a **neutral position**, and at neutral it does nothing 
 | Modern control | Neutral |
 |---|---|
 | Fine | 0 cents |
-| Pitch snap | Off |
+| Snap | Off |
 | Sync | Off |
-| Link | On (right follows left, like Phase 0) |
+| Link | Off (the two channels are independent, as on the hardware) |
 | Feedback routing | Normal (each side feeds itself) |
 | Low cut / High cut | 20 Hz / 20 kHz |
 | Drive | 0 % |
-| Vibrato depth, Scrub depth | 0 |
+| Scrub depth | 0 |
+| Vibrato shape | Sine (the hardware's) |
 
 I'm choosing neutral positions over a Vintage/Modern mode switch. With neutral positions you can add exactly one modern feature to the authentic machine. A mode switch would force all or nothing.
 
@@ -85,37 +86,46 @@ Synced values that don't fit clamp to the longest length that does, and the disp
 
 ## 3. Parameters
 
-**IDs are stable wherever the meaning is stable.** Pitch changes meaning (ratio → semitones), so it gets new IDs. An old 0.0.1 project will open at unity pitch, not a wrong pitch.
+Revised after the clone work. **Every existing ID stays**, with its meaning, so saved projects open as they were. Pitch stays a ratio (the hardware's control); the musical controls act on top of it. Every new control has a neutral default, and at neutral it is bypassed outright, not just set to a small value.
 
-### Per side (L keeps the Phase 0 IDs)
+### Kept from the clone (unchanged)
 
-| Control | L / R ID | Range | Default |
+| Control | ID(s) |
+|---|---|
+| Mode, Stereo, Range, Bandwidth, Freeze, Mix, Init, Build | `mode` `stereo` `range` `bandwidth` `freeze` `mix` `init` `build` |
+| Per channel: Delay, Pitch (ratio), Crosspoint 1 and 2, Feedback, Vibrato depth and speed | `delay` `pitch` `xp1` `xp2` `feedback` `vib_depth` `vib_rate`, and each with `_r` for channel 2 |
+
+### New, per channel
+
+| Control | L / R ID | Range | Neutral |
 |---|---|---|---|
-| Pitch | `semis` / `semis_r` | −24 … +12 st (the hardware's 0.25× … 2×) | 0 |
-| Fine | `cents` / `cents_r` | −100 … +100 ct | 0 |
-| Crosspoint 1 | `xp1` / `xp1_r` | ms, or note value when synced | shortest |
-| Crosspoint 2 | `xp2` / `xp2_r` | ms, or note value when synced | longest |
-| Freeze | `freeze` / `freeze_r` | on / off | off |
+| Fine | `fine` / `fine_r` | −100 … +100 cents, on top of Pitch | 0 |
+| Vibrato shape | `vib_shape` / `vib_shape_r` | Sine / Square (jumps up by the depth and back, a trill) | Sine |
 
-### Global
+### New, global
 
-| Control | ID | Range | Default |
+| Control | ID | Range | Neutral |
 |---|---|---|---|
-| Link | `link` | on / off | on |
-| Bandwidth | `bandwidth` | 5 / 10 / 20 kHz (mono only) | 10 kHz |
-| Feedback | `feedback` | 0 … 99 % | 0 % |
-| Routing | `fb_route` | Normal / Cross / Sum | Normal |
-| Low cut | `fb_lowcut` | 20 … 2000 Hz | 20 Hz |
-| High cut | `fb_highcut` | 1 … 20 kHz | 20 kHz |
-| Drive | `drive` | 0 … 100 % | 0 % |
-| Pitch snap | `snap` | Off / Chromatic / Major / Minor / Pentatonic | Off |
-| Sync | `sync` | on / off | off |
-| Vibrato depth / rate / shape | `vib_depth` `vib_rate` `vib_shape` | 0 … 12 st · 0.1 … 10 Hz · Sine / Square-up | 0 · 5 Hz · Sine |
-| Scrub depth / rate / mode | `scrub_depth` `scrub_rate` `scrub_mode` | 0 … 100 % of region · 0.05 … 10 Hz · LFO / Random | 0 · 0.5 Hz · LFO |
-| Mix | `mix` | 0 … 100 % | 100 % |
-| Init, Build | `init` `build` | as now | |
+| Link | `link` | Off / On. On: channel 2 follows every channel 1 control | Off |
+| Feedback routing | `fb_route` | Normal / Cross / Sum. Cross: each side's repeats go into the other side, ping-pong. Sum: both into both. True stereo only; quasi-stereo already merges | Normal |
+| Low cut | `fb_lowcut` | 20 … 2000 Hz, inside the feedback loop | 20 Hz (off) |
+| High cut | `fb_highcut` | 1 … 20 kHz, inside the loop | 20 kHz (off) |
+| Drive | `drive` | 0 … 100 %, saturation inside the loop | 0 % (off) |
+| Snap | `snap` | Off / Chromatic / Major / Minor / Pentatonic. Pitch lands on the nearest step of the scale, counted from unison | Off |
+| Sync | `sync` | Off / On. Delay and both crosspoints step through note values at the host tempo | Off |
+| Scrub depth | `scrub_depth` | 0 … 100 %: how far the crosspoint region wanders, as a share of its own length | 0 % |
+| Scrub speed | `scrub_rate` | 0.05 … 10 Hz | 0.5 Hz |
+| Scrub mode | `scrub_mode` | LFO (smooth back and forth) / Random (wanders to a new spot each cycle) | LFO |
 
----
+36 parameters in all, up from 22.
+
+**What the loop does, in order.** Each side's output goes through low cut, high cut and drive, then through the routing, then into a memory, where the converter clips it as before. So the tone compounds on every repeat.
+
+**Pitch.** Ratio from the Pitch knob → snapped to the scale if Snap is on → Fine added → clamped to the hardware's 0.25× … 2×. The core still sees one ratio.
+
+**Sync note values**, shortest to longest: 1/64, 1/32T, 1/32, 1/16T, 1/32D, 1/16, 1/8T, 1/16D, 1/8, 1/4T, 1/8D, 1/4, 1/2T, 1/4D, 1/2, 1/2D, 1/1, with the knob's bottom position still the shortest delay. A value longer than the memory holds clamps to the longest that fits, and the readout says so (see section 2).
+
+**Presets** store every parameter except Init and Build. A/B holds two complete settings; both are saved with the project.
 
 ## 4. Where each piece lives
 

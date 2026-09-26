@@ -36,6 +36,29 @@ enum class DelayRange
     Short
 };
 
+/** Where each side's repeats go in true stereo. Quasi-stereo has one write,
+    so its two outputs always merge, whatever this says. */
+enum class FeedbackRoute
+{
+    Normal,  // each side feeds itself, as on the hardware
+    Cross,   // each side feeds the other: ping-pong
+    Sum      // both feed both
+};
+
+/** Vibrato waveform. Square jumps up by the depth and back, a trill. */
+enum class VibratoShape
+{
+    Sine,
+    Square
+};
+
+/** How the scrub moves the crosspoint region. */
+enum class ScrubMode
+{
+    Lfo,     // smooth back and forth
+    Random   // glides to a new random spot each cycle
+};
+
 struct ChannelParams
 {
     /** Delay mode only. 0..1 over the delay scale, which the range switch sets. */
@@ -58,6 +81,7 @@ struct ChannelParams
         semitones, the same in both modes. */
     double vibratoDepth = 0.0;
     double vibratoRate  = 5.0;
+    VibratoShape vibratoShape = VibratoShape::Sine;
 
     /** Memory latch: stop writing, keep looping the crosspoint region. */
     bool freeze = false;
@@ -76,6 +100,24 @@ struct EngineParams
     Bandwidth bandwidth = Bandwidth::k10kHz;
 
     double mix = 1.0;  // 0 dry, 1 wet
+
+    // Modern controls. Every default is neutral, and neutral is bypassed
+    // outright, so a default EngineParams is the hardware and nothing else.
+
+    FeedbackRoute route = FeedbackRoute::Normal;
+
+    /** Tone inside the feedback loop, so it compounds on every repeat. */
+    double lowCutHz  = kLowCutOffHz;
+    double highCutHz = kHighCutOffHz;
+    double drive     = 0.0;  // 0..1
+
+    /** Moves both crosspoints together, as a share of the region's length. */
+    double    scrubDepth = 0.0;  // 0..1
+    double    scrubRate  = 0.5;  // Hz
+    ScrubMode scrubMode  = ScrubMode::Lfo;
+
+    static constexpr double kLowCutOffHz  = 20.0;
+    static constexpr double kHighCutOffHz = 20000.0;
 };
 
 } // namespace the89th

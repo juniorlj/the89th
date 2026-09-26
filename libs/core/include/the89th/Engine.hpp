@@ -11,6 +11,7 @@
 #include "Machine.hpp"
 #include "Params.hpp"
 #include "Resampler.hpp"
+#include "Scrub.hpp"
 #include "Spec.hpp"
 
 namespace the89th
@@ -31,8 +32,9 @@ namespace the89th
 
     Continuous controls glide here, at the host boundary, so the Machine below
     stays a 1:1 model that takes whatever it is given. Pitch, feedback, vibrato
-    depth and mix move to a new setting over kGlideSeconds instead of jumping
-    once per host block. Delay needs no glide: the voice already crossfades to a
+    depth, mix and the feedback tone move to a new setting over kGlideSeconds
+    instead of jumping once per host block. The scrub lives here too: it moves
+    the crosspoint region, every kGlideChunk samples while it runs. Delay needs no glide: the voice already crossfades to a
     new delay. Crosspoints need none either: they bound the region rather than
     being heard, and a bound that moves past the head splices it back in. */
 class Engine
@@ -99,6 +101,8 @@ public:
             std::fill (d.begin(), d.end(), 0.0f);
         dryPos_ = 0;
         forEachGlide ([] (Glide& g) { g.snap (g.target()); });
+        scrub_.reset();
+        scrubPos_ = 0.0;
         machine_.setParams (glided());
     }
 
@@ -164,16 +168,24 @@ private:
             fn (g.feedback);
             fn (g.vibratoDepth);
         }
+        fn (lowCut_);
+        fn (highCut_);
+        fn (drive_);
         fn (mix_);
     }
 
-    bool gliding() const noexcept
+    /** Anything that has to reach the machine more often than once a block. */
+    bool machineMoving() const noexcept
     {
         for (const auto& g : glides_)
             if (g.pitch.moving() || g.feedback.moving() || g.vibratoDepth.moving())
                 return true;
-        return mix_.moving();
+        return lowCut_.moving() || highCut_.moving() || drive_.moving() || scrubbing();
     }
+
+    bool scrubbing() const noexcept { return params_.scrubDepth > 0.0; }
+
+    bool gliding() const noexcept { return machineMoving() || mix_.moving(); }
 
     /** Points the glides at params_. The first settings after prepare are where
         the host starts, not a move, so they land at once. */
@@ -187,6 +199,9 @@ private:
             glides_[ch].vibratoDepth.setTarget (cs[ch]->vibratoDepth);
         }
         mix_.setTarget (params_.mix);
+        lowCut_.setTarget (std::log2 (std::max (params_.lowCutHz, 1.0)));
+        highCut_.setTarget (std::log2 (std::max (params_.highCutHz, 1.0)));
+        drive_.setTarget (params_.drive);
 
         if (! primed_)
         {
@@ -208,7 +223,22 @@ private:
             if (g.pitch.moving())        cs[ch]->pitchRatio   = std::exp2 (g.pitch.current());
             if (g.feedback.moving())     cs[ch]->feedback     = g.feedback.current();
             if (g.vibratoDepth.moving()) cs[ch]->vibratoDepth = g.vibratoDepth.current();
+
+            if (p.scrubDepth > 0.0)
+            {
+                // Slide the region as a whole, by up to its own length each
+                // way, stopping at the ends of memory rather than squashing it.
+                auto& c = *cs[ch];
+                const double lo    = std::min (c.crosspoint1, c.crosspoint2);
+                const double hi    = std::max (c.crosspoint1, c.crosspoint2);
+                const double shift = std::clamp (p.scrubDepth * (hi - lo) * scrubPos_, -lo, 1.0 - hi);
+                c.crosspoint1 += shift;
+                c.crosspoint2 += shift;
+            }
         }
+        if (lowCut_.moving())  p.lowCutHz  = std::exp2 (lowCut_.current());
+        if (highCut_.moving()) p.highCutHz = std::exp2 (highCut_.current());
+        if (drive_.moving())   p.drive     = drive_.current();
         return p;
     }
 
@@ -216,15 +246,14 @@ private:
     {
         const auto len = static_cast<std::size_t> (numSamples);
 
-        bool machineGliding = false;
+        const bool machineGliding = machineMoving();
         for (auto& g : glides_)
-        {
             for (Glide* gl : { &g.pitch, &g.feedback, &g.vibratoDepth })
-            {
-                machineGliding = machineGliding || gl->moving();
                 gl->advance (numSamples);
-            }
-        }
+        for (Glide* gl : { &lowCut_, &highCut_, &drive_ })
+            gl->advance (numSamples);
+        if (scrubbing())
+            scrubPos_ = scrub_.advance (numSamples, params_.scrubRate, hostRate_, params_.scrubMode);
         if (machineGliding)
             machine_.setParams (glided());
 
@@ -349,7 +378,12 @@ private:
     std::size_t dryPos_ = 0;
 
     std::array<ChannelGlides, kNumChannels> glides_ {};
+    Glide lowCut_, highCut_;  // in octaves
+    Glide drive_;
     Glide mix_;
+
+    ScrubLfo scrub_;
+    double   scrubPos_ = 0.0;  // -1..1
     bool  primed_ = false;
 };
 

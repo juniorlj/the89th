@@ -3,6 +3,7 @@
 #include <array>
 
 #include "DelayMemory.hpp"
+#include "FeedbackTone.hpp"
 #include "Interpolation.hpp"
 #include "Params.hpp"
 #include "Quantiser.hpp"
@@ -27,7 +28,11 @@ namespace the89th
     one write, so it holds both sides.
 
     Switching layout repartitions the RAM, which empties it. The memories are
-    allocated at full size up front, so switching never touches the heap. */
+    allocated at full size up front, so switching never touches the heap.
+
+    Two modern additions sit in the recirculation, both bypassed at their
+    defaults: a tone stage per side (FeedbackTone), and in true stereo a choice
+    of where each side's repeats go (FeedbackRoute). */
 template <class Interp = Truncate, class Quant = FlyingComma>
 class Machine
 {
@@ -47,6 +52,8 @@ public:
         state_ = { 0.0f, 0.0f };
         for (auto& v : voices_)
             v.reset();
+        for (auto& t : tone_)
+            t.reset();
     }
 
     void setParams (const EngineParams& p) noexcept
@@ -71,10 +78,20 @@ public:
         const float fbL = static_cast<float> (params_.left.feedback);
         const float fbR = static_cast<float> (params_.right.feedback);
 
+        // What each side sends back. Kept as the same expression as the bare
+        // machine so the neutral path is bit-identical.
+        float backL = fbL * state_[0];
+        float backR = fbR * state_[1];
+        if (toneOn_)
+        {
+            backL = tone_[0].process (backL);
+            backR = tone_[1].process (backR);
+        }
+
         if (quasi())
         {
             const float in = 0.5f * (inL + inR);
-            const float fb = 0.5f * (fbL * state_[0] + fbR * state_[1]);
+            const float fb = 0.5f * (backL + backR);
             mem_[0].write (Quant::store (in + fb));
 
             outL = Quant::load (voices_[0].read (mem_[0]));
@@ -84,8 +101,20 @@ public:
         }
         else
         {
-            mem_[0].write (Quant::store (inL + fbL * state_[0]));
-            mem_[1].write (Quant::store (inR + fbR * state_[1]));
+            float toL = backL, toR = backR;
+            if (params_.route == FeedbackRoute::Cross)
+            {
+                toL = backR;
+                toR = backL;
+            }
+            else if (params_.route == FeedbackRoute::Sum)
+            {
+                // Half each, so the loop gain never exceeds either Feedback knob.
+                toL = toR = 0.5f * (backL + backR);
+            }
+
+            mem_[0].write (Quant::store (inL + toL));
+            mem_[1].write (Quant::store (inR + toR));
 
             outL = Quant::load (voices_[0].read (mem_[0]));
             outR = Quant::load (voices_[1].read (mem_[1]));
@@ -137,6 +166,12 @@ private:
         mem_[1].setWriteHeld (r.freeze);
 
         const double fs = internalSampleRate();
+        for (auto& t : tone_)
+        {
+            t.setSampleRate (fs);
+            t.setParams (params_.lowCutHz, params_.highCutHz, params_.drive);
+        }
+        toneOn_ = tone_[0].active();
         const ChannelParams* ps[2] = { &l, &r };
         for (std::size_t i = 0; i < voices_.size(); ++i)
         {
@@ -154,6 +189,8 @@ private:
     std::array<DelayMemory, 2>       mem_ {};
     std::array<ReadVoice<Interp>, 2> voices_ {};
     std::array<float, 2>             state_ { 0.0f, 0.0f };
+    std::array<FeedbackTone, 2>      tone_ {};
+    bool                             toneOn_ = false;
 };
 
 using DefaultMachine = Machine<Truncate, FlyingComma>;

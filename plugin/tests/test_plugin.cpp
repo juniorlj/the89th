@@ -1,6 +1,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <functional>
+
 #include "../src/ParameterIDs.h"
 #include "../src/PluginProcessor.h"
 
@@ -8,6 +10,10 @@ using Catch::Approx;
 
 namespace
 {
+/** Exact equality, for values that must come through untouched. Spelt this
+    way so it doesn't trip -Wfloat-equal. */
+bool same (double a, double b) { return std::equal_to<double> {} (a, b); }
+
 void pumpMessageThread (int ms = 200)
 {
     juce::MessageManager::getInstance()->runDispatchLoopUntil (ms);
@@ -208,8 +214,120 @@ TEST_CASE ("latency stays put across every clock setting", "[plugin]")
 
             INFO ("stereo " << stereo << ", bandwidth " << bw);
             REQUIRE (p.getLatencySamples() == latency);
-            REQUIRE (p.engine().latencySamples() == static_cast<double> (latency));
+            REQUIRE (same (p.engine().latencySamples(), static_cast<double> (latency)));
         }
+}
+
+namespace
+{
+void setParam (The89thProcessor& p, const char* id, float plainValue)
+{
+    auto* param = p.apvts.getParameter (id);
+    param->setValueNotifyingHost (param->convertTo0to1 (plainValue));
+}
+
+void runBlock (The89thProcessor& p)
+{
+    juce::AudioBuffer<float> buffer (2, 512);
+    juce::MidiBuffer midi;
+    buffer.clear();
+    p.processBlock (buffer, midi);
+}
+} // namespace
+
+TEST_CASE ("every modern control starts neutral, so a fresh instance is the machine", "[plugin][modern]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+    runBlock (p);
+
+    const auto& e = p.engine().params();
+    const the89th::EngineParams hw;
+    REQUIRE (e.route == hw.route);
+    REQUIRE (same (e.lowCutHz, hw.lowCutHz));
+    REQUIRE (same (e.highCutHz, hw.highCutHz));
+    REQUIRE (same (e.drive, hw.drive));
+    REQUIRE (same (e.scrubDepth, hw.scrubDepth));
+    REQUIRE (same (e.left.pitchRatio, 1.0));
+    REQUIRE (e.left.vibratoShape == the89th::VibratoShape::Sine);
+    REQUIRE (e.right.vibratoShape == the89th::VibratoShape::Sine);
+}
+
+TEST_CASE ("link makes channel 2 follow channel 1", "[plugin][modern]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+
+    setParam (p, pid::channel[0].pitch, 1.5f);
+    setParam (p, pid::channel[1].pitch, 0.5f);
+    setParam (p, pid::channel[0].feedback, 0.6f);
+    runBlock (p);
+    REQUIRE (p.engine().params().right.pitchRatio == Approx (0.5));
+
+    setParam (p, pid::link, 1.0f);
+    runBlock (p);
+    const auto& e = p.engine().params();
+    REQUIRE (same (e.right.pitchRatio, e.left.pitchRatio));
+    REQUIRE (same (e.right.feedback, e.left.feedback));
+    REQUIRE (same (e.right.crosspoint2, e.left.crosspoint2));
+}
+
+TEST_CASE ("snap and fine reach the engine as one ratio", "[plugin][modern]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+
+    setParam (p, pid::channel[0].pitch, 1.41f);           // 5.94 semitones
+    setParam (p, pid::snap, 1.0f);                         // chromatic
+    runBlock (p);
+    REQUIRE (p.engine().params().left.pitchRatio == Approx (std::exp2 (6.0 / 12.0)));
+    REQUIRE (p.apvts.getParameter (pid::channel[0].pitch)->getCurrentValueAsText().contains ("6.00 st"));
+
+    setParam (p, pid::channel[0].fine, 50.0f);
+    runBlock (p);
+    REQUIRE (p.engine().params().left.pitchRatio == Approx (std::exp2 (6.5 / 12.0)));
+}
+
+TEST_CASE ("sync puts the crosspoints and delay on note values", "[plugin][modern]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);   // no playhead, so 120 BPM
+
+    namespace mus = the89th::musical;
+    auto knobFor = [] (const char* note)
+    {
+        for (int s = 1; s < mus::kSyncSteps; ++s)
+            if (juce::String (mus::syncName (s)) == note)
+                return static_cast<float> (s) / (mus::kSyncSteps - 1);
+        return 0.0f;
+    };
+
+    setParam (p, pid::sync, 1.0f);
+    setParam (p, pid::channel[0].crosspoint2, knobFor ("1/8"));
+    setParam (p, pid::channel[0].crosspoint1, 0.0f);
+    runBlock (p);
+
+    // True stereo at 10 kHz: 26455 words a second. A 1/8 at 120 BPM is 250 ms.
+    const auto& t = p.engine().machine().voice (0).traversal();
+    REQUIRE (t.regionHi() / 26455.0 == Approx (0.250).margin (1.0 / 26455.0));
+    REQUIRE (p.apvts.getParameter (pid::channel[0].crosspoint2)->getCurrentValueAsText() == "1/8");
+
+    // A 1/2 is a second: longer than the 310 ms memory, so it clamps and says so.
+    setParam (p, pid::channel[0].crosspoint2, knobFor ("1/2"));
+    runBlock (p);
+    REQUIRE (same (p.engine().params().left.crosspoint2, 1.0));
+    REQUIRE (p.apvts.getParameter (pid::channel[0].crosspoint2)->getCurrentValueAsText() == "1/2 > MAX");
+
+    // Delay mode follows too.
+    setParam (p, pid::mode, 0.0f);
+    setParam (p, pid::channel[0].delay, knobFor ("1/16"));
+    runBlock (p);
+    const double delayMs = p.engine().machine().voice (0).delayTarget() / 26455.0;
+    REQUIRE (delayMs == Approx (0.125).margin (1.0 / 26455.0));
 }
 
 TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugin][gui]")

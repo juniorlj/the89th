@@ -19,6 +19,7 @@ juce::String msText (double ms)
 }
 
 juce::String percentText (float v, int) { return juce::String (juce::roundToInt (v * 100.0f)) + " %"; }
+juce::String centsText (float v, int)   { return (v > 0.0f ? "+" : "") + juce::String (juce::roundToInt (v)) + " ct"; }
 juce::String semitoneText (float v, int) { return juce::String (v, 2) + " st"; }
 juce::String hertzText (float v, int)    { return juce::String (v, v < 1.0f ? 2 : 1) + " Hz"; }
 
@@ -70,17 +71,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
     // Positions in memory read as milliseconds, which depend on the current
     // bandwidth, stereo layout and range, so the text functions ask the
     // processor rather than bake in one clock.
-    auto crosspointMs = [this] (float v, int)
-    {
-        const double words = static_cast<double> (readout_.words.load() - kEndGuard - kMinDelay);
-        return msText ((kMinDelay + v * words) * readout_.msPerWord.load());
-    };
-
-    auto delayMs = [this] (float v, int)
+    // With Sync on, the same knobs step through note values; a value longer
+    // than the memory holds says so.
+    auto positionText = [this] (float v, bool isDelay)
     {
         const double full = static_cast<double> (readout_.words.load() - kEndGuard - kMinDelay);
-        const double span = readout_.shortRange.load() ? full / 10.0 : full;
-        return msText ((kMinDelay + v * span) * readout_.msPerWord.load());
+        const double span = isDelay && readout_.shortRange.load() ? full / 10.0 : full;
+
+        if (! readout_.sync.load())
+            return msText ((kMinDelay + v * span) * readout_.msPerWord.load());
+
+        const int step = the89th::musical::syncStep (v);
+        const double ms = 1000.0 * the89th::musical::syncSeconds (step, readout_.bpm.load());
+        const double maxMs = (kMinDelay + span) * readout_.msPerWord.load();
+        return juce::String (the89th::musical::syncName (step)) + (ms > maxMs ? " > MAX" : "");
+    };
+    auto crosspointMs = [positionText] (float v, int) { return positionText (v, false); };
+    auto delayMs      = [positionText] (float v, int) { return positionText (v, true); };
+
+    // Shows where the pitch lands once Snap has had its say.
+    auto pitchText = [this] (float v, int)
+    {
+        const auto scale = static_cast<the89th::musical::Scale> (readout_.snap.load());
+        return ratioToText (static_cast<float> (the89th::musical::pitchRatio (v, scale, 0.0)), 0);
     };
 
     // 0.25 to 2.0 is the hardware's span: two octaves down to one up. Skewed so
@@ -103,7 +116,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { id.pitch, v }, side + "Pitch",
             pitchRange, 1.0f,
-            AudioParameterFloatAttributes{}.withStringFromValueFunction (ratioToText)));
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (pitchText)));
 
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { id.crosspoint1, v }, side + "Crosspoint 1",
@@ -132,7 +145,73 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
             ParameterID { id.vibratoRate, 2 }, side + "Vibrato speed",
             rateRange, 5.0f,
             AudioParameterFloatAttributes{}.withStringFromValueFunction (hertzText)));
+
+        // Modern, version 3, neutral by default.
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { id.fine, 3 }, side + "Fine",
+            NormalisableRange<float> (-100.0f, 100.0f), 0.0f,
+            AudioParameterFloatAttributes{}.withStringFromValueFunction (centsText)));
+
+        layout.add (std::make_unique<AudioParameterChoice> (
+            ParameterID { id.vibratoShape, 3 }, side + "Vibrato shape",
+            StringArray { "Sine", "Square" }, 0));
     }
+
+    // ─── Global: modern controls, version 3, neutral by default ─────────────
+    layout.add (std::make_unique<AudioParameterBool> (
+        ParameterID { pid::link, 3 }, "Link", false));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::fbRoute, 3 }, "Feedback routing",
+        StringArray { "Normal", "Cross", "Sum" }, 0));
+
+    auto lowCutRange = NormalisableRange<float> (20.0f, 2000.0f);
+    lowCutRange.setSkewForCentre (200.0f);
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { pid::lowCut, 3 }, "Low cut",
+        lowCutRange, 20.0f,
+        AudioParameterFloatAttributes{}.withStringFromValueFunction ([] (float v, int)
+        {
+            return v <= 20.5f ? juce::String ("Off") : juce::String (juce::roundToInt (v)) + " Hz";
+        })));
+
+    auto highCutRange = NormalisableRange<float> (1000.0f, 20000.0f);
+    highCutRange.setSkewForCentre (5000.0f);
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { pid::highCut, 3 }, "High cut",
+        highCutRange, 20000.0f,
+        AudioParameterFloatAttributes{}.withStringFromValueFunction ([] (float v, int)
+        {
+            return v >= 19999.5f ? juce::String ("Off") : juce::String (v / 1000.0f, 1) + " kHz";
+        })));
+
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { pid::drive, 3 }, "Drive",
+        NormalisableRange<float> (0.0f, 1.0f), 0.0f,
+        AudioParameterFloatAttributes{}.withStringFromValueFunction (percentText)));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::snap, 3 }, "Snap",
+        StringArray { "Off", "Chromatic", "Major", "Minor", "Pentatonic" }, 0));
+
+    layout.add (std::make_unique<AudioParameterBool> (
+        ParameterID { pid::sync, 3 }, "Sync", false));
+
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { pid::scrubDepth, 3 }, "Scrub depth",
+        NormalisableRange<float> (0.0f, 1.0f), 0.0f,
+        AudioParameterFloatAttributes{}.withStringFromValueFunction (percentText)));
+
+    auto scrubRateRange = NormalisableRange<float> (0.05f, 10.0f);
+    scrubRateRange.setSkewForCentre (0.5f);
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { pid::scrubRate, 3 }, "Scrub speed",
+        scrubRateRange, 0.5f,
+        AudioParameterFloatAttributes{}.withStringFromValueFunction (hertzText)));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { pid::scrubMode, 3 }, "Scrub mode",
+        StringArray { "LFO", "Random" }, 0));
 
     // Not automatable: a host automation lane or a "randomise" should never be
     // able to wipe every setting and the memory mid-song. The panel button
@@ -161,6 +240,8 @@ The89thProcessor::The89thProcessor()
         raw.feedback = apvts.getRawParameterValue (id.feedback);
         raw.vibDepth = apvts.getRawParameterValue (id.vibratoDepth);
         raw.vibRate  = apvts.getRawParameterValue (id.vibratoRate);
+        raw.fine     = apvts.getRawParameterValue (id.fine);
+        raw.vibShape = apvts.getRawParameterValue (id.vibratoShape);
     }
 
     mode_      = apvts.getRawParameterValue (pid::mode);
@@ -169,6 +250,17 @@ The89thProcessor::The89thProcessor()
     bandwidth_ = apvts.getRawParameterValue (pid::bandwidth);
     freeze_    = apvts.getRawParameterValue (pid::freeze);
     mix_       = apvts.getRawParameterValue (pid::mix);
+
+    link_       = apvts.getRawParameterValue (pid::link);
+    fbRoute_    = apvts.getRawParameterValue (pid::fbRoute);
+    lowCut_     = apvts.getRawParameterValue (pid::lowCut);
+    highCut_    = apvts.getRawParameterValue (pid::highCut);
+    drive_      = apvts.getRawParameterValue (pid::drive);
+    snap_       = apvts.getRawParameterValue (pid::snap);
+    sync_       = apvts.getRawParameterValue (pid::sync);
+    scrubDepth_ = apvts.getRawParameterValue (pid::scrubDepth);
+    scrubRate_  = apvts.getRawParameterValue (pid::scrubRate);
+    scrubMode_  = apvts.getRawParameterValue (pid::scrubMode);
 
     apvts.addParameterListener (pid::init, this);
     updateReadout();
@@ -213,9 +305,9 @@ void The89thProcessor::handleAsyncUpdate()
 void The89thProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     engine_.prepare (sampleRate, samplesPerBlock);
+    updateReadout();
     engine_.setParams (readParams());
     engine_.reset();
-    updateReadout();
 
     // Conversion latency only. The delay the engine imposes is the effect. The
     // engine keeps it the same at every clock, so it is only ever set here: a
@@ -237,24 +329,52 @@ bool The89thProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 the89th::EngineParams The89thProcessor::readParams() const
 {
     auto get = [] (std::atomic<float>* a, float fallback) { return a != nullptr ? a->load() : fallback; };
+    namespace mus = the89th::musical;
 
     const bool latched = get (freeze_, 0.0f) > 0.5f;
+    const bool linked  = get (link_, 0.0f) > 0.5f;
+    const bool synced  = readout_.sync.load();
+    const auto scale   = static_cast<mus::Scale> (readout_.snap.load());
+
+    // Synced knobs pick a note; this turns its length into the normalised
+    // position the core takes, clamped to what the memory holds.
+    const double msPerWord = readout_.msPerWord.load();
+    const double full      = static_cast<double> (readout_.words.load() - kEndGuard - kMinDelay);
+    auto synced01 = [&] (float knob, double span)
+    {
+        const int step = mus::syncStep (knob);
+        if (step == 0)
+            return 0.0;
+        const double words = 1000.0 * mus::syncSeconds (step, readout_.bpm.load()) / msPerWord;
+        return std::clamp ((words - kMinDelay) / span, 0.0, 1.0);
+    };
 
     the89th::EngineParams p;
     the89th::ChannelParams* out[2] = { &p.left, &p.right };
 
     for (std::size_t c = 0; c < 2; ++c)
     {
-        const auto& raw = ch_[c];
+        // Linked, channel 2 takes every per-channel control from channel 1.
+        const auto& raw = ch_[linked ? 0 : c];
         auto& cp = *out[c];
         cp.delay        = get (raw.delay, 0.5f);
-        cp.pitchRatio   = get (raw.pitch, 1.0f);
+        cp.pitchRatio   = mus::pitchRatio (get (raw.pitch, 1.0f), scale, get (raw.fine, 0.0f));
         cp.crosspoint1  = get (raw.xp1, 0.0f);
         cp.crosspoint2  = get (raw.xp2, 1.0f);
         cp.feedback     = get (raw.feedback, 0.0f);
         cp.vibratoDepth = get (raw.vibDepth, 0.0f);
         cp.vibratoRate  = get (raw.vibRate, 5.0f);
+        cp.vibratoShape = get (raw.vibShape, 0.0f) > 0.5f ? the89th::VibratoShape::Square
+                                                           : the89th::VibratoShape::Sine;
         cp.freeze       = latched;
+
+        if (synced)
+        {
+            const double delaySpan = readout_.shortRange.load() ? full / 10.0 : full;
+            cp.delay       = synced01 (static_cast<float> (cp.delay), delaySpan);
+            cp.crosspoint1 = synced01 (static_cast<float> (cp.crosspoint1), full);
+            cp.crosspoint2 = synced01 (static_cast<float> (cp.crosspoint2), full);
+        }
     }
 
     p.mode   = get (mode_, 1.0f)   < 0.5f ? the89th::Mode::Delay : the89th::Mode::Pitch;
@@ -267,18 +387,39 @@ the89th::EngineParams The89thProcessor::readParams() const
                 : bw == 2 ? the89th::Bandwidth::k20kHz
                           : the89th::Bandwidth::k10kHz;
 
+    const int route = static_cast<int> (get (fbRoute_, 0.0f));
+    p.route = route == 1 ? the89th::FeedbackRoute::Cross
+            : route == 2 ? the89th::FeedbackRoute::Sum
+                         : the89th::FeedbackRoute::Normal;
+
+    p.lowCutHz  = get (lowCut_, 20.0f);
+    p.highCutHz = get (highCut_, 20000.0f);
+    p.drive     = get (drive_, 0.0f);
+
+    p.scrubDepth = get (scrubDepth_, 0.0f);
+    p.scrubRate  = get (scrubRate_, 0.5f);
+    p.scrubMode  = get (scrubMode_, 0.0f) > 0.5f ? the89th::ScrubMode::Random : the89th::ScrubMode::Lfo;
+
     return p;
 }
 
 void The89thProcessor::updateReadout()
 {
-    const auto p = readParams();
+    auto get = [] (std::atomic<float>* a, float fallback) { return a != nullptr ? a->load() : fallback; };
+
+    const int bw = static_cast<int> (get (bandwidth_, 1.0f));
+    const auto bandwidth = bw == 0 ? the89th::Bandwidth::k5kHz
+                         : bw == 2 ? the89th::Bandwidth::k20kHz
+                                   : the89th::Bandwidth::k10kHz;
+
     the89th::Spec spec;
-    spec.channels = p.stereo == the89th::StereoMode::Quasi ? 1 : 2;
+    spec.channels = get (stereo_, 0.0f) > 0.5f ? 1 : 2;
 
     readout_.words.store (spec.memoryWordsPerChannel());
-    readout_.msPerWord.store (1000.0 / the89th::internalRate (spec, p.bandwidth));
-    readout_.shortRange.store (p.range == the89th::DelayRange::Short);
+    readout_.msPerWord.store (1000.0 / the89th::internalRate (spec, bandwidth));
+    readout_.shortRange.store (get (range_, 0.0f) > 0.5f);
+    readout_.sync.store (get (sync_, 0.0f) > 0.5f);
+    readout_.snap.store (static_cast<int> (get (snap_, 0.0f)));
 }
 
 void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
@@ -291,8 +432,14 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     if (resetRequested_.exchange (false))
         engine_.reset();
 
-    engine_.setParams (readParams());
+    // Sync follows the host's tempo; without a playhead it runs at 120.
+    if (auto* head = getPlayHead())
+        if (auto pos = head->getPosition())
+            if (auto bpm = pos->getBpm(); bpm.hasValue() && *bpm > 0.0)
+                readout_.bpm.store (*bpm);
+
     updateReadout();
+    engine_.setParams (readParams());
 
     engine_.process (buffer.getArrayOfWritePointers(),
                      buffer.getNumChannels(),

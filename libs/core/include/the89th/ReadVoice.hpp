@@ -101,7 +101,7 @@ public:
         {
             if (params_.vibratoDepth > 0.0)
                 traversal_.setRatio (params_.pitchRatio
-                                     * std::exp2 (params_.vibratoDepth * std::sin (lfoPhase_) / 12.0));
+                                     * std::exp2 (params_.vibratoDepth * pitchLfo() / 12.0));
 
             traversal_.advance();
 
@@ -192,9 +192,33 @@ private:
         if (params_.vibratoDepth <= 0.0)
             return 0.0;
 
+        const double up = std::exp2 (params_.vibratoDepth / 12.0) - 1.0;
+
+        if (params_.vibratoShape == VibratoShape::Square)
+        {
+            // A delay line can't stay sharp: holding the pitch up means the
+            // read head gaining on the write head for ever. So in delay mode
+            // the square alternates, up by the depth then down by as much,
+            // from a triangle on the read position. Its slope is the pitch
+            // offset, 4 * amplitude per period.
+            const double amp = up * fs_ / (4.0 * params_.vibratoRate);
+            const double tri = (2.0 / M_PI) * std::asin (std::sin (lfoPhase_));
+            return -amp * tri;
+        }
+
         const double omega = 2.0 * M_PI * params_.vibratoRate / fs_;
-        const double amp   = (std::exp2 (params_.vibratoDepth / 12.0) - 1.0) / omega;
+        const double amp   = up / omega;
         return -amp * std::sin (lfoPhase_);
+    }
+
+    /** Pitch mode drives the ratio directly, in semitones per unit depth.
+        Sine swings either side; square sits on the note, then jumps up by the
+        depth for half of each cycle. */
+    double pitchLfo() const noexcept
+    {
+        if (params_.vibratoShape == VibratoShape::Square)
+            return lfoPhase_ < M_PI ? 1.0 : 0.0;
+        return std::sin (lfoPhase_);
     }
 
     SpliceTraversal traversal_;

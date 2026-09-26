@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <the89th/Engine.hpp>
+#include <the89th/Musical.hpp>
 
 #include "Telemetry.h"
 
@@ -12,7 +13,12 @@
 
     The controls follow the hardware: global Mode, Stereo, Range, Bandwidth and
     Freeze (the latch acts on both channels), and per channel Delay, Pitch,
-    Crosspoint 1 and 2, Feedback and Vibrato. */
+    Crosspoint 1 and 2, Feedback and Vibrato.
+
+    The modern controls sit on top, each neutral by default: Link, feedback
+    routing and tone, Snap and Fine, Sync, Scrub, vibrato shape. The musical
+    ones (Link, Snap, Fine, Sync) are resolved here into the plain numbers the
+    core takes, so the core keeps one idea of pitch and one of position. */
 class The89thProcessor final : public juce::AudioProcessor,
                                private juce::AudioProcessorValueTreeState::Listener,
                                private juce::AsyncUpdater
@@ -57,6 +63,9 @@ private:
         std::atomic<double> msPerWord  { 1000.0 / 26455.0 };
         std::atomic<int>    words      { 8192 };
         std::atomic<bool>   shortRange { false };
+        std::atomic<bool>   sync       { false };
+        std::atomic<double> bpm        { 120.0 };
+        std::atomic<int>    snap       { 0 };
     };
     Readout readout_;
 
@@ -89,6 +98,8 @@ private:
         std::atomic<float>* feedback = nullptr;
         std::atomic<float>* vibDepth = nullptr;
         std::atomic<float>* vibRate = nullptr;
+        std::atomic<float>* fine = nullptr;
+        std::atomic<float>* vibShape = nullptr;
     };
     std::array<ChannelRaw, 2> ch_ {};
 
@@ -98,6 +109,17 @@ private:
     std::atomic<float>* bandwidth_ = nullptr;
     std::atomic<float>* freeze_    = nullptr;
     std::atomic<float>* mix_       = nullptr;
+
+    std::atomic<float>* link_       = nullptr;
+    std::atomic<float>* fbRoute_    = nullptr;
+    std::atomic<float>* lowCut_     = nullptr;
+    std::atomic<float>* highCut_    = nullptr;
+    std::atomic<float>* drive_      = nullptr;
+    std::atomic<float>* snap_       = nullptr;
+    std::atomic<float>* sync_       = nullptr;
+    std::atomic<float>* scrubDepth_ = nullptr;
+    std::atomic<float>* scrubRate_  = nullptr;
+    std::atomic<float>* scrubMode_  = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (The89thProcessor)
 };

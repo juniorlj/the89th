@@ -16,6 +16,18 @@ inline constexpr const char* freeze    = "freeze";
 inline constexpr const char* mix       = "mix";
 inline constexpr const char* init      = "init";
 
+// Global: modern controls. Neutral by default; see docs/phase1-design.md.
+inline constexpr const char* link       = "link";
+inline constexpr const char* fbRoute    = "fb_route";
+inline constexpr const char* lowCut     = "fb_lowcut";
+inline constexpr const char* highCut    = "fb_highcut";
+inline constexpr const char* drive      = "drive";
+inline constexpr const char* snap       = "snap";
+inline constexpr const char* sync       = "sync";
+inline constexpr const char* scrubDepth = "scrub_depth";
+inline constexpr const char* scrubRate  = "scrub_rate";
+inline constexpr const char* scrubMode  = "scrub_mode";
+
 /** Per-channel controls. Index 0 is left, 1 is right. */
 struct Channel
 {
@@ -26,11 +38,13 @@ struct Channel
     const char* feedback;
     const char* vibratoDepth;
     const char* vibratoRate;
+    const char* fine;
+    const char* vibratoShape;
 };
 
 inline constexpr Channel channel[2] = {
-    { "delay",   "pitch",   "xp1",   "xp2",   "feedback",   "vib_depth",   "vib_rate"   },
-    { "delay_r", "pitch_r", "xp1_r", "xp2_r", "feedback_r", "vib_depth_r", "vib_rate_r" },
+    { "delay",   "pitch",   "xp1",   "xp2",   "feedback",   "vib_depth",   "vib_rate",   "fine",   "vib_shape"   },
+    { "delay_r", "pitch_r", "xp1_r", "xp2_r", "feedback_r", "vib_depth_r", "vib_rate_r", "fine_r", "vib_shape_r" },
 };
 
 // Phase 0 names for the left channel, kept for the tests and the editor.
