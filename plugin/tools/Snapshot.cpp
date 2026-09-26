@@ -3,7 +3,7 @@
 //   the89th-snapshot out.png [width] [scene]
 //
 // Scenes: pitch (default), delay, freeze, quasi, keys (the keyboard holding
-// a fifth above the root), kb (the KB 2000 page, biphonic, with its
+// a fifth above the root), kb (the keyboard page, biphonic, with its
 // sections on), modern (a factory preset
 // using the modern controls, with Link on). Audio is run through the real
 // processor first so the rings show a live state, stopping mid-splice where

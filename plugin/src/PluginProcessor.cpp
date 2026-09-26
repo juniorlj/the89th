@@ -214,7 +214,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         ParameterID { pid::scrubMode, 3 }, "Scrub mode",
         StringArray { "LFO", "Random" }, 0));
 
-    // ─── The KB 2000 ────────────────────────────────────────────────────────
+    // ─── The keyboard ────────────────────────────────────────────────────────
     // MIDI plays the keyboard controller sold with the machine, laid out as its
     // panel: pitch ratio settings, envelope, vibrato, Memory Synchro and
     // Reverse Synchro. The panel gives no scales, so the ranges here are
@@ -239,38 +239,38 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
 
     // Pitch ratio settings.
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::keys, 4 }, "KB channels",
+        ParameterID { pid::keys, 4 }, "Keys channels",
         StringArray { "Off", "Left", "Right", "Biphonic" }, 0));
     layout.add (std::make_unique<AudioParameterInt> (
-        ParameterID { pid::keysRoot, 4 }, "KB root", 24, 96, 60,
+        ParameterID { pid::keysRoot, 4 }, "Keys root", 24, 96, 60,
         AudioParameterIntAttributes{}.withStringFromValueFunction ([] (int n, int)
         {
             // Middle C (60) as C3, the convention Henke's re-creation anchors on.
             return juce::MidiMessage::getMidiNoteName (n, true, true, 3);
         })));
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::kbPlay, 4 }, "KB play", StringArray { "Push/Play", "Sustain" }, 0));
-    addFloat (pid::kbTrim,  "KB trimmer", NormalisableRange<float> (-100.0f, 100.0f), 0.0f, centsText);
-    addFloat (pid::kbSlope, "KB slope", timeRange (0.0f, 2.0f, 0.2f), 0.0f,
+        ParameterID { pid::kbPlay, 4 }, "Keys play", StringArray { "Push/Play", "Sustain" }, 0));
+    addFloat (pid::kbTrim,  "Keys trimmer", NormalisableRange<float> (-100.0f, 100.0f), 0.0f, centsText);
+    addFloat (pid::kbSlope, "Keys slope", timeRange (0.0f, 2.0f, 0.2f), 0.0f,
               [] (float v, int) { return v < 0.0005f ? juce::String ("Off") : (v < 1.0f ? juce::String (juce::roundToInt (v * 1000.0f)) + " ms" : juce::String (v, 2) + " s"); });
-    addFloat (pid::kbAdded, "KB added delay", NormalisableRange<float> (0.0f, 1.0f), 0.0f, percentText);
+    addFloat (pid::kbAdded, "Keys added delay", NormalisableRange<float> (0.0f, 1.0f), 0.0f, percentText);
 
     // Envelope.
-    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbEnv, 4 }, "KB envelope", false));
-    addFloat (pid::kbAttack,  "KB attack",  timeRange (0.001f, 2.0f, 0.1f), 0.01f, seconds);
-    addFloat (pid::kbHold,    "KB hold",    timeRange (0.0f,   5.0f, 0.5f), 0.5f,  seconds);
-    addFloat (pid::kbRelease, "KB release", timeRange (0.005f, 5.0f, 0.3f), 0.3f,  seconds);
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbEnv, 4 }, "Keys envelope", false));
+    addFloat (pid::kbAttack,  "Keys attack",  timeRange (0.001f, 2.0f, 0.1f), 0.01f, seconds);
+    addFloat (pid::kbHold,    "Keys hold",    timeRange (0.0f,   5.0f, 0.5f), 0.5f,  seconds);
+    addFloat (pid::kbRelease, "Keys release", timeRange (0.005f, 5.0f, 0.3f), 0.3f,  seconds);
 
     // Vibrato.
-    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbVib, 4 }, "KB vibrato", false));
-    addFloat (pid::kbVibRate,  "KB vibrato frequency", timeRange (0.1f, 12.0f, 3.0f), 5.0f, hertzText);
-    addFloat (pid::kbVibSharp, "KB vibrato sharpness", NormalisableRange<float> (0.0f, 1.0f), 0.0f, percentText);
-    addFloat (pid::kbVibDepth, "KB vibrato depth", NormalisableRange<float> (0.0f, 2.0f), 0.5f, semitoneText);
-    addFloat (pid::kbVibModRate,  "KB modulator to frequency", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
-    addFloat (pid::kbVibModSharp, "KB modulator to sharpness", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
-    addFloat (pid::kbVibModDepth, "KB modulator to depth", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
-    addFloat (pid::kbVibAttack,  "KB modulator attack",  timeRange (0.0f, 5.0f, 0.5f), 0.5f, seconds);
-    addFloat (pid::kbVibRelease, "KB modulator release", timeRange (0.0f, 5.0f, 0.5f), 0.5f, seconds);
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbVib, 4 }, "Keys vibrato", false));
+    addFloat (pid::kbVibRate,  "Keys vibrato frequency", timeRange (0.1f, 12.0f, 3.0f), 5.0f, hertzText);
+    addFloat (pid::kbVibSharp, "Keys vibrato sharpness", NormalisableRange<float> (0.0f, 1.0f), 0.0f, percentText);
+    addFloat (pid::kbVibDepth, "Keys vibrato depth", NormalisableRange<float> (0.0f, 2.0f), 0.5f, semitoneText);
+    addFloat (pid::kbVibModRate,  "Keys modulator to frequency", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
+    addFloat (pid::kbVibModSharp, "Keys modulator to sharpness", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
+    addFloat (pid::kbVibModDepth, "Keys modulator to depth", NormalisableRange<float> (-1.0f, 1.0f), 0.0f, bipolar);
+    addFloat (pid::kbVibAttack,  "Keys modulator attack",  timeRange (0.0f, 5.0f, 0.5f), 0.5f, seconds);
+    addFloat (pid::kbVibRelease, "Keys modulator release", timeRange (0.0f, 5.0f, 0.5f), 0.5f, seconds);
 
     // Memory Synchro. Points read as a place in the latched memory, in ms from
     // its oldest end; speed 0 is Free, reading at the pitch.
@@ -279,20 +279,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout The89thProcessor::createLayo
         return msText (v * static_cast<double> (readout_.words.load()) * readout_.msPerWord.load());
     };
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::kbSynchro, 4 }, "KB memory synchro", sides, 0));
-    addFloat (pid::kbAttackPt, "KB attack point", NormalisableRange<float> (0.0f, 1.0f), 0.0f, pointText);
-    addFloat (pid::kbReturnPt, "KB return point", NormalisableRange<float> (0.0f, 1.0f), 0.5f, pointText);
-    addFloat (pid::kbEndPt,    "KB end point",    NormalisableRange<float> (0.0f, 1.0f), 1.0f, pointText);
-    addFloat (pid::kbSpeed,    "KB speed", timeRange (0.0f, 2.0f, 1.0f), 1.0f,
+        ParameterID { pid::kbSynchro, 4 }, "Keys memory synchro", sides, 0));
+    addFloat (pid::kbAttackPt, "Keys attack point", NormalisableRange<float> (0.0f, 1.0f), 0.0f, pointText);
+    addFloat (pid::kbReturnPt, "Keys return point", NormalisableRange<float> (0.0f, 1.0f), 0.5f, pointText);
+    addFloat (pid::kbEndPt,    "Keys end point",    NormalisableRange<float> (0.0f, 1.0f), 1.0f, pointText);
+    addFloat (pid::kbSpeed,    "Keys speed", timeRange (0.0f, 2.0f, 1.0f), 1.0f,
               [] (float v, int) { return v < 0.005f ? juce::String ("Free") : juce::String (v, 2) + "x"; });
 
     // Reverse Synchro.
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { pid::kbReverse, 4 }, "KB reverse synchro", sides, 0));
-    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbGate, 4 }, "KB noise gate", false));
-    addFloat (pid::kbThresh,   "KB threshold", NormalisableRange<float> (-60.0f, 0.0f), -30.0f,
+        ParameterID { pid::kbReverse, 4 }, "Keys reverse synchro", sides, 0));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { pid::kbGate, 4 }, "Keys noise gate", false));
+    addFloat (pid::kbThresh,   "Keys threshold", NormalisableRange<float> (-60.0f, 0.0f), -30.0f,
               [] (float v, int) { return juce::String (juce::roundToInt (v)) + " dB"; });
-    addFloat (pid::kbRevDelay, "KB added delay (reverse)", timeRange (0.0f, 1.0f, 0.15f), 0.0f, seconds);
+    addFloat (pid::kbRevDelay, "Keys added delay (reverse)", timeRange (0.0f, 1.0f, 0.15f), 0.0f, seconds);
 
     // Not automatable: a host automation lane or a "randomise" should never be
     // able to wipe every setting and the memory mid-song. The panel button
@@ -492,7 +492,7 @@ the89th::EngineParams The89thProcessor::readParams() const
     p.scrubRate  = get (scrubRate_, 0.5f);
     p.scrubMode  = get (scrubMode_, 0.0f) > 0.5f ? the89th::ScrubMode::Random : the89th::ScrubMode::Lfo;
 
-    // The KB 2000. The engine turns notes into pitch, latch and envelope.
+    // The keyboard. The engine turns notes into pitch, latch and envelope.
     auto kb    = [this, &get] (const char* id, float fallback) { return static_cast<double> (get (kbParam (id), fallback)); };
     auto sideOf = [] (double v)
     {

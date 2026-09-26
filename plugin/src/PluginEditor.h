@@ -24,7 +24,7 @@ class The89thProcessor;
     the read controls and the recirculation and vibrato controls. Link sits on
     channel 2's frame, since it is channel 2 that follows.
 
-    The KB 2000 chip in KEYS swaps the channel sections for the keyboard's own
+    The KEYBOARD chip in KEYS swaps the channel sections for the original keyboard's
     panel: PITCH RATIO, ENVELOPE, VIBRATO, MEMORY SYNCHRO and REVERSE SYNCHRO.
 
     Controls the current mode ignores fade back rather than hide, so nothing
@@ -46,7 +46,7 @@ public:
         the snapshot tool can draw a settled frame without waiting on one. */
     void refresh();
 
-    /** Swap the channel sections for the KB 2000's panel, or back. */
+    /** Swap the channel sections for the keyboard's panel, or back. */
     void showKeyboardPage (bool);
 
 private:
@@ -87,7 +87,7 @@ private:
 
     ButtonGroup keys_, kbPlay_;
     Knob keysRoot_;
-    ChipToggle kbPage_ { "KB 2000" };
+    ChipToggle kbPage_ { "Keyboard" };
     std::array<std::unique_ptr<ChannelUI>, 2> ch_;
 
     /** The keyboard's page. */

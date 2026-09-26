@@ -94,7 +94,7 @@ constexpr bool onSide (Sides s, int channel) noexcept
     return s == Sides::Both || (channel == 0 ? s == Sides::Left : s == Sides::Right);
 }
 
-/** The KB 2000, the keyboard controller sold with the machine. Its panel and
+/** The keyboard controller sold with the original. Its panel and
     brochure give the sections and what each does; they give no scales, so
     every time and range here is a choice (docs/clone-status.md lists them).
     Everything is off by default, and off is bypassed outright. */

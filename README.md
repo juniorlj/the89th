@@ -2,7 +2,7 @@
 
 Private Mac VST3 effect plugin. A dual-channel pitch-shifting delay, cloned from a 1978 French studio box.
 
-**Status:** the original's signal path is cloned as far as the published record allows. On top of it sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon. Version `0.1.0`.
+**Status:** the original's signal path is cloned as far as the published record allows, and so is its companion keyboard, played over MIDI. On top sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon. Version `0.5.0`. The user manual is [`docs/manual/`](docs/manual/index.html).
 
 ## Build
 
@@ -77,7 +77,7 @@ The panel opens at 1100 × 800 and resizes from 880 to 1760 wide, keeping its pr
 - A key replaces the Pitch and Fine knobs of the sides it plays; they fade on the panel. The newest key sounds; lift it and the one held before comes back.
 - When a side falls silent it **latches and mutes**, as the hardware did when its pitch input was held high. The memory keeps what was playing, so the next key replays it at a new pitch. Latch it yourself and the keyboard plays a frozen loop like a sampler.
 - Notes land on the exact sample they're played. The display shows the key, or MUTE.
-- **KB 2000** opens the keyboard's panel in place of the channels:
+- **KEYBOARD** opens the keyboard's panel in place of the channels:
   - **Pitch ratio:** *Trimmer* tunes the whole keyboard (±100 cents). *Slope* glides from one note to the next (off to 2 s). *Added delay* pushes the region deeper, a delay in series with the shift.
   - **Envelope** (*On* in its title line): attack, hold and release on each side's output. Off, notes just fade in and out over 5 ms.
   - **Vibrato** (*On*): frequency, sharpness (sine towards square) and depth, and a modulator that each note starts: *Mod freq / sharp / depth* set how far it pulls each one, *Mod attack / release* how fast.

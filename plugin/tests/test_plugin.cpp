@@ -744,7 +744,7 @@ TEST_CASE ("keys: root follows its parameter, and routing picks the channel", "[
     REQUIRE (measureHz (p, t, 40) == Approx (330.0).epsilon (0.03));
 }
 
-TEST_CASE ("the KB 2000's panel reaches the engine", "[plugin][keys]")
+TEST_CASE ("the keyboard page reaches the engine", "[plugin][keys]")
 {
     juce::ScopedJuceInitialiser_GUI gui;
     The89thProcessor p;

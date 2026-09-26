@@ -26,7 +26,7 @@ inline constexpr const char* scrubDepth = "scrub_depth";
 inline constexpr const char* scrubRate  = "scrub_rate";
 inline constexpr const char* scrubMode  = "scrub_mode";
 
-// The KB 2000 keyboard controller, section by section as on its panel. All
+// The original's keyboard controller, section by section as on its panel. All
 // off by default; see KeyboardParams in the core for what each does.
 inline constexpr const char* keys       = "keys";          // Off / Left / Right / Biphonic
 inline constexpr const char* keysRoot   = "keys_root";

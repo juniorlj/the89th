@@ -9,6 +9,6 @@ const char* version() noexcept;
 const char* buildStamp() noexcept;
 const char* gitHash() noexcept;
 
-/** "0.1.0  |  a1b2c3d" */
+/** "0.5.0  |  a1b2c3d" */
 const char* banner() noexcept;
 } // namespace the89th_version

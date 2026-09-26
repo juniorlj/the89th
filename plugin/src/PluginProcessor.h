@@ -125,7 +125,7 @@ private:
     std::atomic<float>* scrubDepth_ = nullptr;
     std::atomic<float>* scrubRate_  = nullptr;
     std::atomic<float>* scrubMode_  = nullptr;
-    /** The KB 2000's controls, by ID. Filled once in the constructor; looked
+    /** The keyboard's controls, by ID. Filled once in the constructor; looked
         up by a scan, which allocates nothing on the audio thread. */
     std::array<std::pair<const char*, std::atomic<float>*>, 28> kb_ {};
 

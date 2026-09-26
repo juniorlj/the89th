@@ -115,7 +115,7 @@ The89thEditor::The89thEditor (The89thProcessor& p)
 
     for (auto* c : kb_.controls())
         addChildComponent (c);
-    kbPage_.setTooltip ("Show the KB 2000 keyboard's panel in place of the channels");
+    kbPage_.setTooltip ("Show the original keyboard's panel in place of the channels");
     kbPage_.onChange = [this] (bool on) { showKeyboardPage (on); };
 
     for (int c = 0; c < 2; ++c)
@@ -295,7 +295,7 @@ void The89thEditor::paint (juce::Graphics& g)
 
     if (kbPage_.isOn())
     {
-        section (g, R (kMargin, 312, 518, 220), "KB 2000 - PITCH RATIO");
+        section (g, R (kMargin, 312, 518, 220), "KEYBOARD - PITCH RATIO");
         section (g, R (kMargin + 534, 312, 518, 220), "ENVELOPE");
         section (g, R (kMargin, 552, 410, 232), "VIBRATO");
         section (g, R (kMargin + 426, 552, 356, 232), "MEMORY SYNCHRO");
@@ -359,7 +359,7 @@ void The89thEditor::resized()
     keysRoot_.setBounds  (R (kMargin + 864, 92, 64, 84));
     kbPage_.setBounds    (R (kMargin + 944, 118, 96, 26));
 
-    // The KB 2000 page.
+    // The keyboard page.
     {
         auto knobRow = [&R] (std::initializer_list<Knob*> knobs, float x, float w, float y, float kw, float kh)
         {

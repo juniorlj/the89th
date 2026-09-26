@@ -1,0 +1,623 @@
+<title>THE89TH Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  /* One look on purpose: the plugin's own panel. Black ground, hairlines,
+     orange for anything live. */
+  :root {
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --hair: #262626;
+    --hair-hi: #3a3a3a;
+    --text: #f2f0ec;
+    --dim: #8a8680;
+    --faint: #4a4744;
+    --orange: #ff6a13;
+    --orange-dim: #7a3208;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --step--1: 0.8125rem;
+    --step-0: 1rem;
+    --step-1: 1.1875rem;
+    --step-2: 1.5rem;
+    --step-3: 2.25rem;
+    --step-4: clamp(2.75rem, 7vw, 5.25rem);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--orange); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+  img { max-width: 100%; display: block; }
+  code, kbd { font-family: var(--mono); font-size: 0.9em; color: var(--orange); }
+  kbd { border: 1px solid var(--hair-hi); padding: 0 0.35em; color: var(--text); }
+
+  /* ── Hero ─────────────────────────────────────────────────────────────── */
+  .hero { position: relative; border-bottom: 1px solid var(--hair); }
+  .hero img { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; opacity: 0.9; }
+  .hero::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0) 75%),
+                linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 40%);
+  }
+  .hero-copy {
+    position: absolute; z-index: 1; left: 0; right: 0; bottom: 0;
+    padding-inline: max(16px, 5vw); padding-block: 0 clamp(20px, 4vw, 56px);
+    display: grid; gap: 0.75rem;
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: var(--step--1); letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--orange);
+  }
+  h1 {
+    margin: 0; font-family: var(--mono); font-weight: 700; font-size: var(--step-4);
+    line-height: 0.95; letter-spacing: -0.02em;
+  }
+  .hero p { margin: 0; max-width: 46ch; color: var(--text); font-size: var(--step-1); line-height: 1.45; }
+  .stamp {
+    display: inline-flex; gap: 0.9rem; align-items: baseline; width: fit-content;
+    border: 1px solid var(--hair-hi); padding: 0.35rem 0.75rem;
+    font-family: var(--mono); font-size: var(--step--1); color: var(--dim); background: rgba(0,0,0,0.6);
+  }
+  .stamp b { color: var(--orange); font-weight: 600; }
+  @media (max-width: 700px) {
+    .hero img { aspect-ratio: 4 / 3; }
+    .hero p { font-size: var(--step-0); }
+  }
+
+  /* ── Layout: index rail and a reading column ──────────────────────────── */
+  .wrap {
+    display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: clamp(24px, 4vw, 64px);
+    max-width: 1240px; margin: 0 auto; padding-inline: max(16px, 4vw); padding-block: 48px 96px;
+  }
+  nav.index { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+  nav.index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; border-left: 1px solid var(--hair); }
+  nav.index a {
+    display: block; padding: 0.3rem 0 0.3rem 0.9rem; margin-left: -1px; border-left: 1px solid transparent;
+    font-family: var(--mono); font-size: var(--step--1); letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--dim); text-decoration: none;
+  }
+  nav.index a:hover { color: var(--text); border-left-color: var(--hair-hi); }
+  nav.index a.on { color: var(--orange); border-left-color: var(--orange); }
+  nav.index .label { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.2em; color: var(--faint); text-transform: uppercase; margin: 0 0 0.75rem; }
+  @media (max-width: 900px) {
+    .wrap { grid-template-columns: minmax(0, 1fr); }
+    nav.index { position: static; }
+    nav.index ol { display: flex; flex-wrap: wrap; gap: 6px; border-left: 0; }
+    nav.index a { border: 1px solid var(--hair); padding: 0.25rem 0.6rem; margin: 0; }
+  }
+
+  main { display: grid; gap: 72px; min-width: 0; }
+
+  /* Sections are boxes with the title cut into the top rule, like the panel. */
+  section.box {
+    position: relative; border: 1px solid var(--hair); padding: clamp(20px, 3vw, 36px);
+    padding-top: clamp(28px, 3.5vw, 44px); display: grid; gap: 1.1rem; scroll-margin-top: 24px;
+  }
+  section.box > h2 {
+    position: absolute; top: -0.8em; left: 14px; margin: 0; padding: 0 0.6rem; background: var(--bg);
+    font-family: var(--mono); font-size: var(--step-1); font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--orange); line-height: 1.6;
+  }
+  h3 {
+    margin: 0.8rem 0 0; font-family: var(--mono); font-weight: 600; font-size: var(--step-0);
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text);
+    display: flex; align-items: center; gap: 0.75rem; text-wrap: balance;
+  }
+  h3::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
+  p, li { max-width: 68ch; }
+  p { margin: 0; }
+  .lede { font-size: var(--step-1); line-height: 1.5; color: var(--text); }
+  .dim { color: var(--dim); }
+  ul.plain { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; }
+  ul.plain li::marker { color: var(--orange); }
+
+  /* Control listings: name in mono, description beside it. */
+  dl.controls { margin: 0; display: grid; grid-template-columns: minmax(9rem, max-content) minmax(0, 1fr); border-top: 1px solid var(--hair); }
+  dl.controls dt, dl.controls dd { margin: 0; padding: 0.7rem 0; border-bottom: 1px solid var(--hair); }
+  dl.controls dt {
+    font-family: var(--mono); font-size: var(--step--1); font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text); padding-right: 1.25rem;
+  }
+  dl.controls dt small { display: block; font-weight: 400; color: var(--dim); letter-spacing: 0.04em; text-transform: none; margin-top: 0.15rem; }
+  dl.controls dd { color: var(--text); }
+  dl.controls dd .src { display: inline-block; margin-left: 0.35rem; font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--orange); border: 1px solid var(--orange-dim); padding: 0 0.35rem; vertical-align: 2px; }
+  dl.controls dd .src.new { color: var(--dim); border-color: var(--hair-hi); }
+  @media (max-width: 600px) {
+    dl.controls { grid-template-columns: minmax(0, 1fr); }
+    dl.controls dt { border-bottom: 0; padding-bottom: 0.1rem; }
+  }
+
+  figure { margin: 0; display: grid; gap: 0.6rem; }
+  figure img { border: 1px solid var(--hair); }
+  figcaption { font-family: var(--mono); font-size: var(--step--1); color: var(--dim); }
+  figcaption b { color: var(--orange); font-weight: 500; }
+
+  /* Panel map: numbered markers over a real screenshot. */
+  .map { position: relative; border: 1px solid var(--hair); }
+  .map img { border: 0; }
+  .pin {
+    position: absolute; transform: translate(-50%, -50%);
+    width: clamp(18px, 2.4vw, 28px); height: clamp(18px, 2.4vw, 28px); border-radius: 50%;
+    display: grid; place-items: center; background: var(--orange); color: #000;
+    font: 700 clamp(9px, 1.1vw, 13px) / 1 var(--mono); box-shadow: 0 0 0 3px rgba(0,0,0,0.75);
+  }
+  ol.legend { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.35rem 1.5rem; counter-reset: pin; }
+  ol.legend li { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 0.5rem; align-items: baseline; font-size: 0.9375rem; }
+  ol.legend li::before {
+    counter-increment: pin; content: counter(pin); font: 700 0.75rem / 1.6 var(--mono);
+    color: #000; background: var(--orange); border-radius: 50%; width: 1.3rem; height: 1.3rem; display: grid; place-items: center;
+  }
+  ol.legend b { font-family: var(--mono); font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* Signal chain. */
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-family: var(--mono); font-size: var(--step--1); }
+  .chain span { border: 1px solid var(--hair-hi); padding: 0.3rem 0.55rem; background: var(--surface); }
+  .chain span.hot { border-color: var(--orange); color: var(--orange); }
+  .chain span.opt { border-style: dashed; color: var(--dim); }
+  .chain i { font-style: normal; color: var(--faint); }
+
+  /* Tables. */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--hair); }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 0.9375rem; }
+  th, td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+  th { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+  td.num { font-family: var(--mono); color: var(--orange); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* Callouts. */
+  .note { border-left: 2px solid var(--orange); padding: 0.2rem 0 0.2rem 1rem; color: var(--text); max-width: 68ch; }
+  .note b { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); display: block; margin-bottom: 0.15rem; }
+
+  /* Recipes: each is a card with its settings as chips. */
+  .recipes { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; }
+  .recipe { border: 1px solid var(--hair); background: var(--surface); padding: 1.1rem 1.2rem; display: grid; gap: 0.6rem; align-content: start; }
+  .recipe h4 { margin: 0; font-family: var(--mono); font-size: 0.9375rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .recipe p { font-size: 0.9375rem; color: var(--dim); }
+  .recipe .set { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .recipe .set span { font-family: var(--mono); font-size: 0.75rem; border: 1px solid var(--hair-hi); padding: 0.1rem 0.4rem; color: var(--text); }
+  .recipe .set span b { color: var(--orange); font-weight: 500; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(1rem, 3vw, 2rem); align-items: start; }
+  @media (max-width: 800px) { .split { grid-template-columns: minmax(0, 1fr); } }
+
+  svg.diagram { width: 100%; height: auto; display: block; }
+  svg.diagram text { font-family: var(--mono); }
+
+  footer { border-top: 1px solid var(--hair); padding-inline: max(16px, 4vw); padding-block: 28px 48px; font-family: var(--mono); font-size: var(--step--1); color: var(--faint); display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; justify-content: space-between; max-width: 1240px; margin: 0 auto; }
+</style>
+
+<header class="hero">
+  <img src="img/hero.jpg" alt="A late-1970s digital effects rack in the dark, its orange LED displays lit.">
+  <div class="hero-copy">
+    <span class="eyebrow">User manual</span>
+    <h1>THE89TH</h1>
+    <p>A 1978 French stereo pitch shifter and delay, rebuilt word for word, with the keyboard controller that turned it into a sampler.</p>
+    <span class="stamp">VERSION <b>0.5.0</b> VST3 · STANDALONE · APPLE SILICON</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="index" aria-label="Contents">
+    <p class="label">Contents</p>
+    <ol>
+      <li><a href="#start">Start here</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#panel">The panel</a></li>
+      <li><a href="#system">System & output</a></li>
+      <li><a href="#channels">Channels</a></li>
+      <li><a href="#display">The display</a></li>
+      <li><a href="#modern">Modern row</a></li>
+      <li><a href="#keyboard">Keyboard</a></li>
+      <li><a href="#recipes">Recipes</a></li>
+      <li><a href="#tips">Tips & limits</a></li>
+      <li><a href="#original">Next to the original</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- ── Start ─────────────────────────────────────────────────────────── -->
+    <section class="box" id="start">
+      <h2>Start here</h2>
+      <p class="lede">THE89TH copies a machine from 1978: two channels of digital delay that can also shift pitch, reverse, and hold a sound in memory to play back like a tape loop. Everything the original does is here, and it sounds grainy and alive in the same ways. A row of modern extras sits on top. Each one does nothing until you turn it up, so a fresh instance is the original and nothing else.</p>
+
+      <h3>Install</h3>
+      <ul class="plain">
+        <li>The plugin installs to <code>~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3</code>. It runs on Apple Silicon Macs as a VST3 effect or as a standalone app.</li>
+        <li>In FL Studio, open <b>Options › Manage plugins</b> and rescan. THE89TH appears under effects, in the Delay category.</li>
+        <li>Put it on a mixer insert like any delay. It works in stereo or mono.</li>
+      </ul>
+
+      <h3>After an update</h3>
+      <p>A running FL keeps the copy of the plugin it loaded first, even after a rescan. <b>Quit FL and open it again</b> to load a new version. The <b>Build</b> plate at the top right of the panel shows the version and build you are running, so you can always check.</p>
+
+      <h3>First sound in thirty seconds</h3>
+      <ul class="plain">
+        <li>Play something through it. At the defaults each channel is a pitch shifter set to no shift, so you hear your sound slightly delayed.</li>
+        <li>Turn a channel's <b>Pitch</b> knob. The sound shifts up or down, up to an octave up and two octaves down.</li>
+        <li>Turn <b>Crosspoint 2</b> down to about a third. The shift gets tighter and more rhythmic.</li>
+        <li>Press <b>Latch</b>. The input is cut off and whatever was in memory loops. Keep turning Pitch: you are now playing a sample.</li>
+      </ul>
+    </section>
+
+    <!-- ── How it works ──────────────────────────────────────────────────── -->
+    <section class="box" id="how">
+      <h2>How it works</h2>
+      <p class="lede">Picture a tape loop with one recording head and two playback heads.</p>
+      <p>The recording head writes your sound into memory at a fixed speed. The playback heads read it back at whatever speed the <b>Pitch</b> control sets. Reading faster than you record raises the pitch, and reading slower lowers it. A head can't read faster than the recording for ever without overtaking it, so two <b>crosspoints</b> fence off a stretch of memory. When a head reaches the far crosspoint it jumps back to the near one. The second head takes over at that moment and the two crossfade, so you don't hear the join.</p>
+
+      <figure>
+        <svg class="diagram" viewBox="0 0 900 250" role="img" aria-labelledby="dg1t dg1d">
+          <title id="dg1t">The memory, the write head and the crosspoint region</title>
+          <desc id="dg1d">Memory runs from older sound on the left to the write head on the right. Crosspoint 1 and crosspoint 2 mark a region behind the write head. A read head moves through the region, jumps back to the start, and a second head crossfades in at the jump.</desc>
+          <rect x="40" y="96" width="780" height="54" fill="#0a0a0a" stroke="#3a3a3a"/>
+          <g fill="#1c1c1c">
+            <rect x="46" y="102" width="6" height="42"/><rect x="58" y="102" width="6" height="42"/><rect x="70" y="102" width="6" height="42"/><rect x="82" y="102" width="6" height="42"/><rect x="94" y="102" width="6" height="42"/>
+          </g>
+          <rect x="360" y="96" width="300" height="54" fill="#7a3208" fill-opacity="0.35" stroke="#ff6a13"/>
+          <line x1="820" y1="70" x2="820" y2="176" stroke="#f2f0ec" stroke-width="2"/>
+          <text x="820" y="60" text-anchor="middle" fill="#f2f0ec" font-size="13">WRITE HEAD</text>
+          <text x="820" y="196" text-anchor="middle" fill="#8a8680" font-size="12">now</text>
+          <text x="40" y="196" fill="#8a8680" font-size="12">older sound</text>
+          <line x1="360" y1="84" x2="360" y2="162" stroke="#ff6a13" stroke-width="2"/>
+          <line x1="660" y1="84" x2="660" y2="162" stroke="#ff6a13" stroke-width="2"/>
+          <text x="360" y="76" text-anchor="middle" fill="#ff6a13" font-size="12">CROSSPOINT 1</text>
+          <text x="660" y="76" text-anchor="middle" fill="#ff6a13" font-size="12">CROSSPOINT 2</text>
+          <rect x="560" y="104" width="12" height="38" fill="#ff6a13"/>
+          <text x="566" y="176" text-anchor="middle" fill="#ff6a13" font-size="12">A</text>
+          <rect x="648" y="104" width="12" height="38" fill="#ff6a13" fill-opacity="0.35"/>
+          <text x="654" y="176" text-anchor="middle" fill="#8a8680" font-size="12">B</text>
+          <path d="M 566 214 C 566 236, 654 236, 654 214" fill="none" stroke="#8a8680" stroke-dasharray="4 4"/>
+          <text x="610" y="248" text-anchor="middle" fill="#8a8680" font-size="12">A reaches the edge: B takes over, the two crossfade</text>
+          <text x="510" y="30" text-anchor="middle" fill="#f2f0ec" font-size="13">the region the heads play</text>
+          <line x1="360" y1="40" x2="660" y2="40" stroke="#3a3a3a"/>
+        </svg>
+        <figcaption>Pitch is how fast the heads move through the <b>region</b>. The region's size sets how often they jump.</figcaption>
+      </figure>
+
+      <p>That one mechanism gives you everything else:</p>
+      <ul class="plain">
+        <li><b>Reverse</b> is not a separate mode. Set Crosspoint 1 deeper than Crosspoint 2 and the heads read the region backwards.</li>
+        <li><b>Latch</b> stops the recording head. The playback heads keep moving, so the region loops, and pitch and reverse still work on it.</li>
+        <li><b>Feedback</b> sends the output back into memory, through the pitch shifter, so each repeat climbs or falls further.</li>
+        <li><b>Bandwidth</b> changes the machine's clock. What is already in memory then plays back at the new speed and jumps by an octave, exactly as on the original.</li>
+      </ul>
+
+      <h3>Signal path, per channel</h3>
+      <div class="chain" role="img" aria-label="Input, treble lift in delay mode, anti-alias filter, converter, memory, two read heads with crossfade, reconstruction filter, treble cut in delay mode, mix, output. Feedback returns from after the heads into memory.">
+        <span>IN</span><i>→</i><span class="opt">treble lift</span><i>→</i><span>filter</span><i>→</i><span>13-bit converter</span><i>→</i><span class="hot">memory</span><i>→</i><span class="hot">2 heads + crossfade</span><i>→</i><span>filter</span><i>→</i><span class="opt">treble cut</span><i>→</i><span>MIX</span><i>→</i><span>OUT</span>
+      </div>
+      <p class="dim">Dashed stages run in Delay mode only. Feedback leaves after the heads and goes back in before memory. The converter stores each sample as a 13-bit floating-point word, which is where much of the original's grain comes from, and it clips hard at full scale.</p>
+    </section>
+
+    <!-- ── Panel ─────────────────────────────────────────────────────────── -->
+    <section class="box" id="panel">
+      <h2>The panel</h2>
+      <p>The panel opens at 1100 × 800 and resizes from 880 to 1760 wide. Orange means live: values, lit rings and active switches. Controls the current mode ignores fade back instead of disappearing, so nothing moves under your hand. Double-click any knob to reset it.</p>
+      <div class="map">
+        <img src="img/panel-pitch.png" alt="The full panel, both channels in pitch mode, channel 2 set to reverse.">
+        <span class="pin" style="left:47.5%;top:4.4%">1</span>
+        <span class="pin" style="left:83.5%;top:4.4%">2</span>
+        <span class="pin" style="left:95.4%;top:5.4%">3</span>
+        <span class="pin" style="left:21.9%;top:16.4%">4</span>
+        <span class="pin" style="left:48.1%;top:16.4%">5</span>
+        <span class="pin" style="left:76.2%;top:16.4%">6</span>
+        <span class="pin" style="left:23.1%;top:30.6%">7</span>
+        <span class="pin" style="left:58.2%;top:30.6%">8</span>
+        <span class="pin" style="left:85.1%;top:30.6%">9</span>
+        <span class="pin" style="left:8.4%;top:51.3%">10</span>
+        <span class="pin" style="left:31%;top:53.1%">11</span>
+        <span class="pin" style="left:25.7%;top:75.8%">12</span>
+        <span class="pin" style="left:25.7%;top:91%">13</span>
+        <span class="pin" style="left:93.2%;top:39%">14</span>
+      </div>
+      <ol class="legend">
+        <li><span><b>Presets</b>, Save and A/B</span></li>
+        <li><span><b>Build</b>: version and build loaded</span></li>
+        <li><span><b>Init</b>: everything back to default</span></li>
+        <li><span><b>System</b>: Stereo, Range, Bandwidth</span></li>
+        <li><span><b>Output</b>: Mix</span></li>
+        <li><span><b>Keys</b>: the keyboard</span></li>
+        <li><span><b>Feedback loop</b> (modern)</span></li>
+        <li><span><b>Musical</b>: Snap, Sync (modern)</span></li>
+        <li><span><b>Scrub</b> (modern)</span></li>
+        <li><span><b>Mode</b> and <b>Latch</b>, per channel</span></li>
+        <li><span>The channel's <b>display</b></span></li>
+        <li><span><b>Read</b>: Delay, Pitch, Fine, Crosspoints</span></li>
+        <li><span><b>Recirculate</b> and <b>Vibrato</b></span></li>
+        <li><span><b>Link</b>: channel 2 follows channel 1</span></li>
+      </ol>
+
+      <h3>Presets and A/B</h3>
+      <dl class="controls">
+        <dt>◀ ▶ and the name</dt><dd>Step through presets, or click the name for the full list. An asterisk means you've changed something since loading.</dd>
+        <dt>Save</dt><dd>Stores the panel as one of your presets, one file each, in <code>~/Library/Application Support/THE89TH/Presets</code>. The list also offers Delete and Show preset folder. Factory presets can't be overwritten.</dd>
+        <dt>A / B</dt><dd>Two complete settings to flip between while you tweak. The first switch copies the current setting across. <b>A&gt;B</b> copies the side you're on to the other. Both slots are saved with the project.</dd>
+        <dt>Init</dt><dd>Returns every control to its default and clears the memory. Hosts can't automate it, so a stray automation lane can't wipe a song.</dd>
+      </dl>
+    </section>
+
+    <!-- ── System ────────────────────────────────────────────────────────── -->
+    <section class="box" id="system">
+      <h2>System & output</h2>
+      <p>These switches are shared by both channels, as on the original, because they set the one converter and the one memory the channels share.</p>
+      <dl class="controls">
+        <dt>Stereo<small>True · Quasi</small></dt>
+        <dd><b>True</b> gives two independent channels, each with half the memory. <b>Quasi</b> mixes both inputs into one recording that fills the whole memory. Both channels then play that one recording with their own pitch and crosspoints, their repeats merge, and 20 kHz becomes available. <span class="src">Original</span></dd>
+        <dt>Range<small>Long · Short</small></dt>
+        <dd><b>Short</b> divides the Delay knob's range by ten, for doubling and flanging. <span class="src">Original</span></dd>
+        <dt>Bandwidth<small>5K · 10K · 20K</small></dt>
+        <dd>Sets the machine's clock. Lower is longer and grainier. Switching while sound is in memory drops or raises it by octaves on the spot, which is one of the original's signature tricks. 20K needs Quasi; in True stereo it stays at 10K. <span class="src">Original</span></dd>
+        <dt>Mix</dt>
+        <dd>Dry to wet. At 100 % you hear only the machine.</dd>
+      </dl>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bandwidth</th><th>Machine clock</th><th>Longest delay, True</th><th>Longest delay, Quasi</th></tr></thead>
+          <tbody>
+            <tr><td>5 kHz</td><td class="num">13,228 Hz</td><td class="num">619 ms</td><td class="num">1,239 ms</td></tr>
+            <tr><td>10 kHz</td><td class="num">26,455 Hz</td><td class="num">310 ms</td><td class="num">619 ms</td></tr>
+            <tr><td>20 kHz</td><td class="num">52,910 Hz</td><td class="dim">not available</td><td class="num">310 ms</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="dim">The original's brochure quotes 1,200, 600 and 300 ms, the Quasi column rounded.</p>
+    </section>
+
+    <!-- ── Channels ──────────────────────────────────────────────────────── -->
+    <section class="box" id="channels">
+      <h2>Channels</h2>
+      <p>Each channel has the same set of controls, laid out in three groups. Mode and Latch sit at the channel's outer edge, where the original has them.</p>
+      <dl class="controls">
+        <dt>Mode<small>Delay · Pitch</small></dt>
+        <dd><b>Delay</b> makes the channel a plain delay set by its Delay knob, with a treble lift before memory and a matching cut after, which pushes storage noise down. <b>Pitch</b> sends the heads through the crosspoint region at the Pitch ratio. Each channel picks its own. <span class="src">Original</span></dd>
+        <dt>Latch</dt>
+        <dd>The memory latch. Stops recording and loops the region, with pitch and reverse still active. Lights solid orange while latched. In Quasi there is one recording, so either channel's Latch holds both. <span class="src">Original</span></dd>
+        <dt>Delay</dt>
+        <dd>The delay time in Delay mode, read in milliseconds. Changes crossfade to the new time, so there's no pitch bend and no click. Fades in Pitch mode. <span class="src">Original</span></dd>
+        <dt>Pitch<small>0.25× to 2×</small></dt>
+        <dd>Two octaves down to one up. The ring lights from the centre, where nothing is shifted. <span class="src">Original</span></dd>
+        <dt>Fine<small>±100 cents</small></dt>
+        <dd>A fine trim on top of Pitch. The original has coarse and fine pitch pots. <span class="src">Original</span></dd>
+        <dt>Crosspoint 1 / 2</dt>
+        <dd>The two edges of the region the heads play, in milliseconds behind the write head. Their distance sets the grain: short regions track rhythm tightly and colour sustained notes, long ones make rhythmic cut-ups. Put <b>Crosspoint 1 deeper than Crosspoint 2</b> and the region plays in <b>reverse</b>. The original's manual advises keeping them at least 10 ms apart. <span class="src">Original</span></dd>
+        <dt>Feedback</dt>
+        <dd>Repeats go back through the pitch shifter, so they arpeggiate: a fifth up keeps climbing in fifths. <span class="src">Original</span></dd>
+        <dt>Vibrato<small>Depth · Speed · Shape</small></dt>
+        <dd>Depth up to 2 semitones, speed 0.1 to 10 Hz. <b>SIN</b> is the original's. <b>SQR</b> is a modern trill: in Pitch mode it jumps up by the depth and back; in Delay mode it alternates up and down. <span class="src">Original</span> <span class="src new">SQR modern</span></dd>
+        <dt>Link</dt>
+        <dd>On channel 2's title line. Channel 2 follows every channel 1 control, and its own knobs fade. <span class="src new">Modern</span></dd>
+      </dl>
+      <div class="note"><b>Moves never click</b>Pitch, Feedback, Vibrato depth, Mix and the loop's cuts and drive glide over 30 ms. Delay crossfades to its new time. A crosspoint pulled past a read head crossfades the head back into the region.</div>
+
+      <figure>
+        <img src="img/panel-delay.png" alt="The panel with both channels in Delay mode, feedback up.">
+        <figcaption>Both channels in <b>Delay</b> mode: Pitch and the crosspoints fade, Delay is live.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ── Display ───────────────────────────────────────────────────────── -->
+    <section class="box" id="display">
+      <h2>The display</h2>
+      <div class="split">
+        <div style="display:grid;gap:1rem">
+          <p>Each channel's display draws its memory as a circle, turning as the addresses do.</p>
+          <ul class="plain">
+            <li>The <b>white tick</b> sweeping round is the write head.</li>
+            <li>The <b>orange arc</b> is the crosspoint region. It turns solid when latched.</li>
+            <li>The <b>orange squares</b> are the read heads, each as bright as it is loud, so you can watch a join crossfade.</li>
+            <li>The <b>top line</b> shows the mode and the pitch or delay, or the key being played.</li>
+            <li>The <b>bottom line</b> shows the control under your hand, and otherwise the region and how well the last join matched. <b>JOIN 1.00</b> is a perfect match.</li>
+            <li>A <b>level meter</b> runs down the right side.</li>
+          </ul>
+        </div>
+        <figure>
+          <img src="img/panel-freeze.png" alt="Both channels latched; the displays show solid orange regions.">
+          <figcaption>Both channels <b>latched</b>: the regions turn solid and the displays read LATCH.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ── Modern ────────────────────────────────────────────────────────── -->
+    <section class="box" id="modern">
+      <h2>Modern row</h2>
+      <p>Additions that the original didn't have. Each does nothing at its default.</p>
+      <dl class="controls">
+        <dt>Routing<small>Norm · Cross · Sum</small></dt>
+        <dd>True stereo only. <b>Norm</b>: each side feeds itself, as on the original. <b>Cross</b>: each side's repeats come back on the other, ping-pong. <b>Sum</b>: both feed both.</dd>
+        <dt>Low cut / High cut / Drive</dt>
+        <dd>Inside the feedback loop, so they build up with every repeat. A high cut darkens each pass a little more; drive thickens repeats and rounds off loud ones.</dd>
+        <dt>Snap</dt>
+        <dd>Pulls the Pitch knobs onto a scale counted from the unshifted note: chromatic, major, minor or pentatonic.</dd>
+        <dt>Sync</dt>
+        <dd>Delay and both crosspoints step through note values, 1/64 to a whole note with triplets and dotted, at the host tempo. A value longer than the memory holds reads <b>&gt; MAX</b> and plays at the longest that fits.</dd>
+        <dt>Scrub<small>Depth · Speed · LFO / RND</small></dt>
+        <dd>Slides the region back and forth by up to its own length each way. LFO sways; RND wanders to a new spot each cycle. It needs a region smaller than the whole memory.</dd>
+      </dl>
+      <figure>
+        <img src="img/panel-modern.png" alt="The panel running the Ping-Pong Eighths preset with Link and Snap on.">
+        <figcaption>The <b>Ping-Pong Eighths</b> preset: Sync, Cross routing and a high cut in the loop.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ── Keyboard ──────────────────────────────────────────────────────── -->
+    <section class="box" id="keyboard">
+      <h2>Keyboard</h2>
+      <figure>
+        <img src="img/keyboard.jpg" alt="A vintage three-octave keyboard controller with coloured knobs and a row of red lights.">
+      </figure>
+      <p class="lede">The original was sold with a three-octave keyboard controller that played its pitch clock. It turned the machine into one of the first samplers. THE89TH plays the same controller from MIDI.</p>
+      <p>Its layout and behaviour come from photos of a working unit and the original brochure. They say what every section does but give no times or ranges, so those are our choices.</p>
+
+      <h3>Getting MIDI in, in FL Studio</h3>
+      <ul class="plain">
+        <li>Add a <b>MIDI Out</b> channel to the Channel Rack and give it a port number.</li>
+        <li>Open THE89TH's wrapper settings (the gear icon) and set its <b>MIDI input port</b> to the same number.</li>
+        <li>Notes on the MIDI Out channel, or your keyboard with it selected, now play the plugin.</li>
+      </ul>
+
+      <h3>The Keys box</h3>
+      <dl class="controls">
+        <dt>Channels<small>Off · L · R · BI</small></dt>
+        <dd>Which channels the keyboard plays. <b>BI</b> is the original's biphonic mode: two voices, the lower key on the left and the higher on the right. One key plays on both. <span class="src">Original</span></dd>
+        <dt>Play<small>Push · Sust</small></dt>
+        <dd><b>Push</b> sounds only while a key is down, like an organ. <b>Sust</b> starts the note on the key and lets the envelope decide how long it lasts. <span class="src">Original</span></dd>
+        <dt>Root</dt>
+        <dd>The key that plays at the original pitch, C3 by default. Each key is a semitone, within −24 to +12. Pitch bend adds ±2 semitones.</dd>
+        <dt>Keyboard</dt>
+        <dd>Opens the keyboard's own panel in place of the channels. Click again to go back.</dd>
+      </dl>
+      <p>A key replaces the <b>Pitch</b> and <b>Fine</b> knobs of the channels it plays; they fade on the panel. The newest key sounds; lift it and the one held before comes back. Notes land on the exact sample they're played.</p>
+      <div class="note"><b>Silence latches</b>When a keyboard channel falls silent it latches and mutes, as the original did at note-off. Whatever was playing stays in memory, so the next key replays it at a new pitch. Latch the channel yourself and the keyboard plays a frozen loop like a sampler.</div>
+
+      <figure>
+        <img src="img/panel-kb.png" alt="The keyboard page: pitch ratio, envelope, vibrato, memory synchro and reverse synchro sections.">
+        <figcaption>The <b>keyboard page</b>, biphonic, with the envelope, vibrato and Memory Synchro on.</figcaption>
+      </figure>
+
+      <h3>Pitch ratio</h3>
+      <dl class="controls">
+        <dt>Trimmer<small>±100 cents</small></dt><dd>Tunes the whole keyboard. <span class="src">Original</span></dd>
+        <dt>Slope<small>Off to 2 s</small></dt><dd>Glissando: how long a channel takes to slide from one note to the next. <span class="src">Original</span></dd>
+        <dt>Added delay</dt><dd>Pushes the region deeper, a delay in series with the shift. The brochure's three-voice chorus is your dry sound plus the two keyed channels with some added delay. <span class="src">Original</span></dd>
+      </dl>
+
+      <h3>Envelope</h3>
+      <dl class="controls">
+        <dt>On</dt><dd>Two envelopes, one per channel, on the output. Off, notes just fade in and out over 5 ms. <span class="src">Original</span></dd>
+        <dt>Attack<small>1 ms to 2 s</small></dt><dd>Fade-in at each new note.</dd>
+        <dt>Hold<small>0 to 5 s</small></dt><dd>In Sust mode, how long the note stays up before it releases.</dd>
+        <dt>Release<small>5 ms to 5 s</small></dt><dd>Fade-out after the key lifts, or after the hold in Sust.</dd>
+      </dl>
+
+      <h3>Vibrato</h3>
+      <dl class="controls">
+        <dt>On</dt><dd>A vibrato on the keyed channels that evolves through each note. <span class="src">Original</span></dd>
+        <dt>Frequency · Sharpness · Depth</dt><dd>The starting point: speed (0.1 to 12 Hz), shape from sine towards square, and depth up to 2 semitones.</dd>
+        <dt>Mod freq · sharp · depth</dt><dd>How far a modulator pulls each of those, up or down, as the note goes on. Mod depth at +50 % with no base depth gives the classic delayed vibrato.</dd>
+        <dt>Mod attack · release</dt><dd>How fast the modulator rises after each note starts, and falls after it ends.</dd>
+      </dl>
+
+      <h3>Memory Synchro</h3>
+      <p>For latched memory: the original's "biphonic memory synthesizer". Record something, latch it, then play it from the keys.</p>
+      <dl class="controls">
+        <dt>Sides<small>Off · L · R · Both</small></dt><dd>Which channels it acts on. <span class="src">Original</span></dd>
+        <dt>Attack pt</dt><dd>Where in memory each note starts, counted from the oldest sound.</dd>
+        <dt>End pt · Return pt</dt><dd>While the note lasts, reading runs to the end point, then loops from the return point.</dd>
+        <dt>Speed<small>Free · up to 2×</small></dt><dd>1× reads as recorded. Slower or faster stretches time without changing pitch. <b>Free</b> reads at the pitch, like tape.</dd>
+      </dl>
+      <p class="dim">The row of lights beside the switch shows where each channel is reading, like the thirty-light bar on the original.</p>
+
+      <h3>Reverse Synchro</h3>
+      <p>For live input only. On its own, reverse chops the sound on its own schedule, so the result drifts against the tempo. Reverse Synchro restarts the reverse on each attack in the input, so reversed drums stay in time.</p>
+      <dl class="controls">
+        <dt>Sides<small>Off · L · R · Both</small></dt><dd>Which channels it acts on: any channel in Pitch mode, played from the keys or not. It pauses while a channel is latched. <span class="src">Original</span></dd>
+        <dt>Threshold<small>−60 to 0 dB</small></dt><dd>How loud a sound must get to count as an attack.</dd>
+        <dt>Delay<small>0 to 1 s</small></dt><dd>Waits this long after each attack before restarting.</dd>
+        <dt>Gate</dt><dd>Mutes the channel while its input stays below the threshold.</dd>
+      </dl>
+    </section>
+
+    <!-- ── Recipes ───────────────────────────────────────────────────────── -->
+    <section class="box" id="recipes">
+      <h2>Recipes</h2>
+      <p>Starting points. Settings not listed stay at their defaults.</p>
+      <div class="recipes">
+        <article class="recipe">
+          <h4>Octave doubler</h4>
+          <p>A clean voice an octave up, tucked under the dry signal.</p>
+          <div class="set"><span>Pitch <b>2.0×</b></span><span>Crosspoint 2 <b>30 %</b></span><span>Mix <b>35 %</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Wide detune</h4>
+          <p>A chorus with no modulation: each side slightly off in the opposite direction.</p>
+          <div class="set"><span>Fine L <b>+8 ct</b></span><span>Fine R <b>−8 ct</b></span><span>Crosspoint 2 <b>12 %</b></span><span>Mix <b>50 %</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Reverse tail</h4>
+          <p>Every phrase comes back backwards. Add Feedback for a wash.</p>
+          <div class="set"><span>Crosspoint 1 <b>50 %</b></span><span>Crosspoint 2 <b>0</b></span><span>Mix <b>60 %</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Rising arpeggio</h4>
+          <p>Repeats climb in fifths through the pitch shifter.</p>
+          <div class="set"><span>Snap <b>CHR</b></span><span>Pitch <b>+7 st</b></span><span>Crosspoint 2 <b>35 %</b></span><span>Feedback <b>70 %</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Digital glitch campfire</h4>
+          <p>The trick from the original's demos: hold a loop and flip the clock while it plays.</p>
+          <div class="set"><span>Feedback <b>high</b></span><span>Latch <b>on</b></span><span>Bandwidth <b>flip 5K ↔ 10K</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Keyed sampler</h4>
+          <p>Record a bar, latch it, then play it from the keys with a slow attack.</p>
+          <div class="set"><span>Keys <b>BI</b></span><span>Latch <b>both</b></span><span>Envelope <b>on</b></span><span>Attack <b>200 ms</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Stretched loop</h4>
+          <p>A latched phrase played at half speed without dropping in pitch.</p>
+          <div class="set"><span>Keys <b>L</b></span><span>Latch <b>L</b></span><span>Memory Synchro <b>L</b></span><span>Speed <b>0.5×</b></span></div>
+        </article>
+        <article class="recipe">
+          <h4>Reversed drums in time</h4>
+          <p>Backwards hits that still land on the beat.</p>
+          <div class="set"><span>Crosspoint 1 <b>30 %</b></span><span>Crosspoint 2 <b>0</b></span><span>Reverse Synchro <b>Both</b></span><span>Threshold <b>−24 dB</b></span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── Tips ──────────────────────────────────────────────────────────── -->
+    <section class="box" id="tips">
+      <h2>Tips & limits</h2>
+      <dl class="controls">
+        <dt>Run at 48 kHz</dt><dd>At a 44.1 kHz project rate the host itself stops at 22.05 kHz, so the filters cap slightly below 20 kHz. 48 kHz or higher gets the full band.</dd>
+        <dt>Latency</dt><dd>The plugin reports a fixed 3.3 ms and holds the dry signal back by the same amount, so the host keeps everything in time. The delay you set is on top of that, as it should be.</dd>
+        <dt>Peaks above 0 dBFS</dt><dd>Mid-crossfade the two heads can add up, and heavy feedback clips the converter, whose steep filter then overshoots. Expect up to about +5 dB at extreme feedback. Nothing clips inside the plugin; watch the channel meter.</dd>
+        <dt>Short regions</dt><dd>Very short crosspoint regions splice many times a second. That buzz is part of the sound; for smooth shifts keep the region at 10 ms or more.</dd>
+        <dt>Updates in FL</dt><dd>Quit and reopen FL after installing a new build. The Build plate shows which one is loaded.</dd>
+      </dl>
+    </section>
+
+    <!-- ── Original ──────────────────────────────────────────────────────── -->
+    <section class="box" id="original">
+      <h2>Next to the original</h2>
+      <p>THE89TH is modelled on the original's design: the same memory, 16,384 thirteen-bit words, the same clock, the same converter format, the same two-head mechanism, word-for-word reading and the same switches. Its figures match the original's published ones. The layout of both front panels and the keyboard's behaviour come from photos of working units and the original brochure.</p>
+      <p>Where nothing is published we chose, and wrote the choice down: the filter shape, the treble-lift curve, how the join search picks its points, and the keyboard's times and ranges. The original's rear-panel control sockets, the keyboard's microphone input and the slow drift of its analog pitch oscillator are left out.</p>
+      <p class="dim">The full list, with every behaviour marked as matching, derived, assumed or not modelled, is <code>docs/clone-status.md</code> in the project.</p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <span>THE89TH · user manual · version 0.5.0</span>
+  <span>Images: panel captures from the plugin; photography generated with Higgsfield</span>
+</footer>
+
+<script>
+  // Light the contents entry for the section in view.
+  (() => {
+    const links = [...document.querySelectorAll('nav.index a')];
+    const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+    if (!('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        links.forEach(a => a.classList.remove('on'));
+        byId.get(e.target.id)?.classList.add('on');
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    document.querySelectorAll('section.box[id]').forEach(s => io.observe(s));
+  })();
+</script>

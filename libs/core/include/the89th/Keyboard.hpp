@@ -10,7 +10,7 @@
 namespace the89th
 {
 
-/** One of the KB 2000's two envelope generators, driving one channel's VCA.
+/** One of the original keyboard's two envelope generators, driving one channel's VCA.
     Straight-line segments; the panel gives attack, hold and release times.
 
     Push/Play: attack on the key, full while it is down, release when it lifts.
@@ -94,7 +94,7 @@ private:
     bool   sustainMode_ = false;
 };
 
-/** The KB 2000 as a controller over the machine, at host rate.
+/** The original's keyboard as a controller over the machine, at host rate.
 
     The machine took each channel's pitch from an external clock: connecting
     one disconnected that channel's Pitch pots, and holding it high latched the
