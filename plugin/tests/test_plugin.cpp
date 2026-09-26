@@ -497,7 +497,7 @@ TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugi
 
     std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
     REQUIRE (ed->getWidth()  == 1100);
-    REQUIRE (ed->getHeight() == 680);
+    REQUIRE (ed->getHeight() == 800);
     REQUIRE (ed->isResizable());
 
     auto* c = ed->getConstrainer();
@@ -509,7 +509,7 @@ TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugi
     // assert or divide by zero when painted.
     for (int w : { 880, 1100, 1760 })
     {
-        ed->setSize (w, w * 680 / 1100);
+        ed->setSize (w, w * 800 / 1100);
         const auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
         REQUIRE (img.getWidth() == w);
     }

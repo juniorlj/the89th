@@ -8,6 +8,27 @@ LookAndFeel::LookAndFeel()
     setColour (juce::TooltipWindow::backgroundColourId, surface);
     setColour (juce::TooltipWindow::textColourId, text);
     setColour (juce::TooltipWindow::outlineColourId, hairHi);
+
+    // Preset list and the save dialog.
+    setColour (juce::PopupMenu::backgroundColourId, surface);
+    setColour (juce::PopupMenu::textColourId, text);
+    setColour (juce::PopupMenu::headerTextColourId, orange);
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, orange);
+    setColour (juce::PopupMenu::highlightedTextColourId, bg);
+    setColour (juce::AlertWindow::backgroundColourId, surface);
+    setColour (juce::AlertWindow::textColourId, text);
+    setColour (juce::AlertWindow::outlineColourId, hairHi);
+    setColour (juce::TextEditor::backgroundColourId, bg);
+    setColour (juce::TextEditor::textColourId, orange);
+    setColour (juce::TextEditor::outlineColourId, hairHi);
+    setColour (juce::TextEditor::focusedOutlineColourId, orange);
+    setColour (juce::TextEditor::highlightColourId, orangeDim);
+    setColour (juce::CaretComponent::caretColourId, orange);
+    setColour (juce::TextButton::buttonColourId, surface);
+    setColour (juce::TextButton::buttonOnColourId, orange);
+    setColour (juce::TextButton::textColourOffId, text);
+    setColour (juce::TextButton::textColourOnId, bg);
+    setColour (juce::ComboBox::outlineColourId, hairHi);
 }
 
 void LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,

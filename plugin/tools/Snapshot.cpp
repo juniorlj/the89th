@@ -2,7 +2,8 @@
 //
 //   the89th-snapshot out.png [width] [scene]
 //
-// Scenes: pitch (default), delay, freeze, quasi. Audio is run through the real
+// Scenes: pitch (default), delay, freeze, quasi, modern (a factory preset
+// using the modern controls, with Link on). Audio is run through the real
 // processor first so the rings show a live state, stopping mid-splice where
 // the scene has splices.
 
@@ -52,7 +53,7 @@ int main (int argc, char** argv)
 {
     if (argc < 2)
     {
-        std::fprintf (stderr, "usage: the89th-snapshot out.png [width] [pitch|delay|freeze|quasi]\n");
+        std::fprintf (stderr, "usage: the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern]\n");
         return 1;
     }
 
@@ -66,7 +67,19 @@ int main (int argc, char** argv)
     p.prepareToPlay (48000.0, 512);
 
     bool splices = true;
-    if (scene == "delay")
+    if (scene == "modern")
+    {
+        const auto& list = p.presets.entries();
+        for (int i = 0; i < static_cast<int> (list.size()); ++i)
+            if (list[static_cast<std::size_t> (i)].name == "Ping-Pong Eighths")
+                p.presets.load (i);
+        set (p, pid::snap, 1.0f);
+        set (p, pid::link, 1.0f);
+        set (p, pid::scrubDepth, 0.4f);
+        p.presets.selectSlot (1);
+        splices = false;
+    }
+    else if (scene == "delay")
     {
         set (p, pid::mode, 0.0f);
         set (p, pid::channel[0].delay, 0.35f);

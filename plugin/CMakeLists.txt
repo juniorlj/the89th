@@ -47,6 +47,7 @@ target_sources(the89th_plugin PRIVATE
     src/gui/Theme.cpp
     src/gui/Controls.cpp
     src/gui/MemoryRing.cpp
+    src/gui/PresetBar.cpp
 )
 
 target_include_directories(the89th_plugin PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

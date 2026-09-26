@@ -51,13 +51,15 @@ private:
 };
 
 /** One button for a bool parameter. Accent (the latch) is outlined orange
-    and fills solid when on; Plain is a hairline button. Momentary buttons
-    (Init) send true and let the processor clear it. */
+    and fills solid when on; Plain is a hairline button with its legend
+    underneath; Chip is a compact toggle, a dot and the legend in one outline,
+    that lights orange when on. Momentary buttons (Init) send true and let the
+    processor clear it. */
 class PushButton final : public juce::Component,
                          public juce::SettableTooltipClient
 {
 public:
-    enum class Style { Plain, Accent };
+    enum class Style { Plain, Accent, Chip };
 
     PushButton (juce::AudioProcessorValueTreeState&, const juce::String& paramId,
                 const juce::String& legend, Style, bool momentary = false);

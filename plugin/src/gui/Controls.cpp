@@ -24,7 +24,7 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
     slider_.setRotaryParameters (juce::degreesToRadians (225.0f), juce::degreesToRadians (495.0f), true);
     slider_.setDoubleClickReturnValue (true, param_.convertFrom0to1 (param_.getDefaultValue()));
     slider_.setMouseDragSensitivity (240);
-    slider_.getProperties().set ("bipolar", paramId.startsWith ("pitch"));
+    slider_.getProperties().set ("bipolar", paramId.startsWith ("pitch") || paramId.startsWith ("fine"));
     slider_.setTooltip (param_.getName (64) + ". Double-click to reset.");
 
     auto report = [this]
@@ -176,6 +176,21 @@ void PushButton::paint (juce::Graphics& g)
         g.setColour (lit ? theme::bg : theme::orange);
         g.setFont (theme::mono (r.getHeight() * 0.30f, true));
         g.drawText (legend_, r, juce::Justification::centred);
+        return;
+    }
+
+    if (style_ == Style::Chip)
+    {
+        g.setColour (pressed_ ? theme::orangeDim : theme::surface);
+        g.fillRect (r);
+        g.setColour (lit ? theme::orange : theme::hairHi);
+        g.drawRect (r, 1.0f);
+
+        const float h = r.getHeight();
+        draw::dot (g, { r.getX() + h * 0.5f, r.getCentreY() }, h * 0.12f, lit);
+        g.setColour (lit ? theme::orange : theme::textDim);
+        g.setFont (theme::mono (h * 0.42f, lit));
+        g.drawText (legend_, r.withTrimmedLeft (h * 0.85f).withTrimmedRight (h * 0.2f), juce::Justification::centred);
         return;
     }
 
