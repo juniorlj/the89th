@@ -16,6 +16,7 @@ add_executable(the89th_tests
     test_xing.cpp
     test_filters.cpp
     test_machine.cpp
+    test_glide.cpp
 )
 
 target_link_libraries(the89th_tests PRIVATE

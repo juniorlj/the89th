@@ -7,9 +7,10 @@ Status: **for review. Paused while the clone was finished, and several items are
 > - Per-side controls for pitch, crosspoints, feedback and delay (part of step 4). The hardware had them.
 > - Vibrato (part of step 7): per channel, sine.
 > - Millisecond readouts for delay and crosspoints (part of step 2).
+> - Smoothing (part of step 2): pitch, feedback, vibrato depth and mix glide over 30 ms, and a crosspoint moved past a read head splices it back in rather than clicking. Crosspoints don't glide: they bound the region rather than being heard.
 > - The custom GUI (step 9), now flat black and orange after mockup `design/mockup-02b-digital.png`, with a live display per channel. Built for the hardware's control set; modern controls still need a place in it.
 >
-> **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, smoothing, and presets with A/B.
+> **Still to do from this plan:** fine and snap pitch, tempo sync, a link switch, cross and sum routing in true stereo (quasi-stereo already merges), feedback tone and drive, scrub, and presets with A/B.
 >
 > **Parameter IDs** below predate the clone work. The plugin now uses `pitch`/`pitch_r` as a ratio (the hardware's control), plus `delay`, `mode`, `stereo`, `range` and the vibrato IDs. Revise section 3 before building.
 

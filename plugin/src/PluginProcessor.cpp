@@ -181,11 +181,20 @@ void The89thProcessor::parameterChanged (const juce::String& id, float value)
     // Called from whichever thread moved the control, possibly the audio one,
     // so do nothing here but hand off.
     if (id == pid::init && value > 0.5f)
+    {
+        initRequested_.store (true);
         triggerAsyncUpdate();
+    }
 }
 
 void The89thProcessor::handleAsyncUpdate()
 {
+    if (const int latency = latencyPending_.exchange (-1); latency >= 0)
+        setLatencySamples (latency);
+
+    if (! initRequested_.exchange (false))
+        return;
+
     for (auto* p : getParameters())
     {
         auto* withID = dynamic_cast<juce::AudioProcessorParameterWithID*> (p);
@@ -214,7 +223,9 @@ void The89thProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     updateReadout();
 
     // Conversion latency only. The delay the engine imposes is the effect.
-    setLatencySamples (static_cast<int> (std::ceil (engine_.latencySamples())));
+    latencyReported_ = static_cast<int> (std::ceil (engine_.latencySamples()));
+    latencyPending_.store (-1);
+    setLatencySamples (latencyReported_);
 }
 
 bool The89thProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -286,6 +297,13 @@ void The89thProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
     engine_.setParams (readParams());
     updateReadout();
+
+    if (const int latency = static_cast<int> (std::ceil (engine_.latencySamples())); latency != latencyReported_)
+    {
+        latencyReported_ = latency;
+        latencyPending_.store (latency);
+        triggerAsyncUpdate();
+    }
 
     engine_.process (buffer.getArrayOfWritePointers(),
                      buffer.getNumChannels(),

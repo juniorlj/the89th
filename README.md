@@ -23,6 +23,16 @@ Needs CMake, Ninja and Apple clang. JUCE and Catch2 download on first configure.
 
 **Rebuilding while FL is open:** FL keeps the build it loaded first until you quit it. Rescanning, "Reload plugin" and re-adding the plugin all return the old code, because macOS keeps a loaded plugin in memory. Quit and reopen FL after a rebuild, then check the build number in the top-right corner of the panel. For fast iteration without a host, `cmake --build build --target run_the89th` rebuilds and restarts the Standalone app.
 
+## Validate
+
+[pluginval](https://github.com/Tracktion/pluginval) loads the plugin the way a host does and stress-tests it: cold and warm opens, every sample rate and block size, state save and restore, parameter fuzzing, automation from other threads, and Steinberg's VST3 validator. Run it after changes to the processor or parameters:
+
+```bash
+pluginval --strictness-level 10 --validate ~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3
+```
+
+It passes at level 10, the strictest.
+
 ## How it works
 
 Think of a tape loop with one recording head and two playback heads. The recording head runs at a fixed speed. The playback heads run at whatever speed the Pitch control sets, and playing back faster or slower than you record shifts the pitch. Two crosspoints fence off a stretch of memory. When a playback head reaches the far one it jumps back to the near one, and the two heads crossfade over the jump so you don't hear the join.
@@ -63,6 +73,8 @@ The panel opens at 1100 × 680 and resizes from 880 to 1760 wide, keeping its pr
 - **Vibrato depth / speed.**
 
 Double-click a knob to reset it. Controls the current mode ignores fade back rather than disappear.
+
+Knob moves and automation don't click. Pitch, Feedback, Vibrato depth and Mix glide to a new setting over 30 ms. Delay crossfades to its new time. A crosspoint pulled past a read head crossfades the head back into the region.
 
 **The display** draws each channel's memory as a circle:
 - a white tick sweeps round as the write head

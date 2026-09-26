@@ -89,16 +89,19 @@ if(APPLE)
     )
 endif()
 
-# Optional host-free loop: rebuild and restart the Standalone app.
-add_custom_target(run_the89th
-    DEPENDS the89th_plugin_Standalone
-    COMMAND ${CMAKE_COMMAND} -E echo "Restarting THE89TH standalone..."
-    COMMAND sh -c "pkill -f 'THE89TH.app/Contents/MacOS/THE89TH' 2>/dev/null || true"
-    COMMAND ${CMAKE_COMMAND} -E sleep 0.2
-    COMMAND open "$<TARGET_BUNDLE_DIR:the89th_plugin_Standalone>"
-    VERBATIM
-    USES_TERMINAL
-)
+# Optional host-free loop: rebuild and restart the Standalone app. macOS only:
+# it opens the app bundle.
+if(APPLE)
+    add_custom_target(run_the89th
+        DEPENDS the89th_plugin_Standalone
+        COMMAND ${CMAKE_COMMAND} -E echo "Restarting THE89TH standalone..."
+        COMMAND sh -c "pkill -f 'THE89TH.app/Contents/MacOS/THE89TH' 2>/dev/null || true"
+        COMMAND ${CMAKE_COMMAND} -E sleep 0.2
+        COMMAND open "$<TARGET_BUNDLE_DIR:the89th_plugin_Standalone>"
+        VERBATIM
+        USES_TERMINAL
+    )
+endif()
 
 # The generic editor drives the AudioProcessor directly, so exercising that
 # class is exercising what the controls actually do. Links the plugin's shared

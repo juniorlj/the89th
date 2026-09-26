@@ -159,6 +159,29 @@ TEST_CASE ("the plugin passes audio and stays finite", "[plugin]")
     }
 }
 
+TEST_CASE ("a bandwidth switch reports the new latency to the host", "[plugin]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+
+    The89thProcessor p;
+    p.prepareToPlay (48000.0, 512);
+    const int before = p.getLatencySamples();
+    REQUIRE (before > 0);
+
+    juce::AudioBuffer<float> buffer (2, 512);
+    juce::MidiBuffer midi;
+
+    // 5 kHz halves the clock, which stretches the resampler's latency.
+    p.apvts.getParameter (pid::bandwidth)->setValueNotifyingHost (0.0f);
+    buffer.clear();
+    p.processBlock (buffer, midi);
+    pumpMessageThread();
+
+    const int after = p.getLatencySamples();
+    REQUIRE (after != before);
+    REQUIRE (after == static_cast<int> (std::ceil (p.engine().latencySamples())));
+}
+
 TEST_CASE ("the editor opens large, resizes, and keeps its proportions", "[plugin][gui]")
 {
     juce::ScopedJuceInitialiser_GUI gui;

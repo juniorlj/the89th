@@ -43,6 +43,8 @@ Nothing here has been compared against a working unit. That comparison is the on
 | Crossfade curve | Follows the match: equal gain when the joined material matches, equal power when it doesn't | The analog crossfade stage is unidentified | `SpliceTraversal::fadeGain` |
 | Crossfade length | 96 samples at the internal clock | Unpublished | `Spec::crossfadeSamples` |
 | Delay control change | Crossfade to the new delay | A jump would click and a glide would bend pitch; two playback circuits handing over is what the machine does elsewhere | `ReadVoice` |
+| Pitch, feedback, vibrato depth and mix moves | Glide to the new setting over 30 ms | The pitch pot tuned an analog oscillator, which can't jump either. A host only updates once per block, so without a glide a pitch sweep steps | `Engine::kGlideSeconds` |
+| Crosspoint moved past a read head | The head crossfades back into the region, as at the end of a traversal | Snapping it to the new edge would click. How the hardware's counters reacted is unpublished | `SpliceTraversal::setRegion` |
 | Vibrato | Sine; depth 0–2 semitones; speed 0.1–10 Hz; same peak deviation in both modes | Later units had depth and speed pots; shape and ranges unpublished | `ReadVoice`, plugin ranges |
 | Quasi-stereo input | Mono sum of left and right | "One input" feeds both sides; which pin is unclear | `Machine::step` |
 | Freeze | One latch for both channels | The rear connector's latch acts on both | Plugin |
@@ -60,7 +62,8 @@ Nothing here has been compared against a working unit. That comparison is the on
 ## Known limits of the plugin itself
 
 - **20 kHz at a 44.1 kHz host.** The host's own Nyquist limit is 22.05 kHz, so the filters are capped at 0.45 × host rate. Run the host at 48 kHz or higher for the full 20 kHz band.
-- **Latency moves with bandwidth.** The resampler's latency depends on the clock. It's reported to the host when playback starts, not when you switch mid-session.
+- **Latency moves with bandwidth.** The resampler's latency depends on the clock. A switch is reported to the host straight away, but some hosts only re-align tracks once playback stops.
+- **Peaks can go above 0 dBFS.** Two things add up. Mid-crossfade, both heads play at once: on an equal-power fade the pair can sum to +3 dB where they happen to line up, and Xing brings that down by switching to equal gain when the join matches. And heavy feedback clips the converter, and the steep output filter overshoots on the clipped edges. Measured: up to about +3 dB from the machine, +5 dB after the filter, on a chord at 0.95 feedback. The analog stages of the original would do the same. A DAW works in floating point, so nothing clips inside the plugin; keep an eye on the channel meter at extreme feedback.
 - **A running FL keeps the build it loaded first.** Quit and reopen FL after a rebuild; the build stamp tells you which build is loaded. See the README.
 
 ---

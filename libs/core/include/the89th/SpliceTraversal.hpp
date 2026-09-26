@@ -69,11 +69,13 @@ public:
             fadePos_ = -1;
             needsPlacement_ = false;
         }
-        else if (fadePos_ < 0)
+        else if (fadePos_ < 0 && (primary_ < lo_ || primary_ > hi_))
         {
-            // Crosspoints are pots: they move under the head. Clamping rather
-            // than wrapping keeps a fast sweep inside the region.
-            primary_ = std::clamp (primary_, lo_, hi_);
+            // Crosspoints are pots: they move under the head. A head the region
+            // has left behind splices back in with the same crossfade that ends
+            // a traversal. Snapping it onto the new bound would be a jump in
+            // read position, which is a click.
+            spliceTo (entryBound());
         }
     }
 
@@ -95,6 +97,7 @@ public:
         needsPlacement_ = true;
         fadePos_        = -1;
         launched_       = false;
+        pendingLaunch_  = false;
         primary_ = secondary_ = entryBound();
     }
 
@@ -106,6 +109,7 @@ public:
         primary_ = secondary_ = std::clamp (delay, lo_, hi_);
         fadePos_        = -1;
         launched_       = false;
+        pendingLaunch_  = false;
         needsPlacement_ = false;
     }
 
@@ -127,7 +131,10 @@ public:
 
     void advance() noexcept
     {
-        launched_ = false;
+        // A splice started by a region move shows as launched after the next
+        // step, so the voice's Xing still gets to place its incoming head.
+        launched_      = pendingLaunch_;
+        pendingLaunch_ = false;
         primary_ += step_;
 
         // The standby head only moves while it is being faded in. Letting it
@@ -203,6 +210,20 @@ public:
     double regionLength() const noexcept { return length_; }
 
 private:
+    void spliceTo (double delay) noexcept
+    {
+        activeFade_ = fadeLengthForStep();
+        if (activeFade_ <= 0)
+        {
+            primary_ = delay;  // region too short to fade across
+            return;
+        }
+
+        secondary_     = delay;
+        fadePos_       = 0;
+        pendingLaunch_ = true;
+    }
+
     void updateStep() noexcept
     {
         signedRate_ = (reverse_ ? -1.0 : 1.0) * ratio_;
@@ -274,6 +295,7 @@ private:
     int  fadePos_    = -1;  // -1 when not splicing
     bool needsPlacement_ = true;
     bool launched_   = false;
+    bool pendingLaunch_ = false;
     float shape_     = 0.0f;
 };
 
