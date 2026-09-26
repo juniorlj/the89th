@@ -110,7 +110,18 @@ A VST3, installed and ready. Mac, Apple Silicon. A Standalone app, and a command
 
 The controls match the original's panel. The global switches are Mode, Stereo, Range, Bandwidth, Freeze and Mix. Each channel gets Delay, Pitch, both Crosspoints, Feedback and Vibrato. There's also Init. Delay and crosspoints read in milliseconds.
 
-69 automated tests. The ones that matter most:
+## What the panel looks like, and why
+
+The panel is black and orange. Orange marks anything live: a value, a lit ring, an active switch. Everything else stays out of the way. It went through three looks to get here. The first was a generic dark app with coloured rings, which read as software, not an instrument. The second was 70s hardware with wood sides and metal knobs, which read as too vintage. This one is flat and digital, taken from mockups generated with Higgsfield and then drawn in code so it stays sharp at any window size. The mockups are in [`design/`](design/).
+
+What's worth knowing when you use it:
+
+- **The displays show the machine working.** Each channel's memory is drawn as a circle. A white tick is the recording head sweeping round. The orange arc is the crosspoint region, and the orange squares are the playback heads, as bright as they are loud. At a join you can watch one fade out while the other fades in. None of this was visible on the original.
+- **Every knob shows its value underneath, in orange.** The display's bottom line also echoes whichever knob you're turning.
+- **Controls that do nothing in the current mode fade** instead of disappearing, so nothing moves under your hand. In Pitch mode the Delay knob fades. In Delay mode, Pitch and the crosspoints fade, unless Freeze is on, because a frozen loop still uses them.
+- **Freeze lights solid orange** while it's holding the loop.
+
+70 automated tests. The ones that matter most:
 
 - At pitch 1.0, and in delay mode, the sound comes out **identical**, bit for bit, apart from the storage format's own grain. The tests check that too.
 - A 440 Hz tone at pitch 2.0 comes out at 880 Hz, to within 1%.
