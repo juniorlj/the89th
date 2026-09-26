@@ -6,7 +6,7 @@ Every behaviour is in one of four states:
 
 - **Matches**: follows documented behaviour, and a test checks it.
 - **Derived**: not documented directly, but worked out from published numbers, and the numbers check out.
-- **Assumed**: the hardware detail isn't published. We made a reasoned choice, and it's defined in one place in the code so it's easy to change.
+- **Assumed**: the hardware detail isn't published. The clone makes a reasoned choice, defined in one place in the code so it's easy to change.
 - **Not modelled**: left out on purpose.
 
 Modern controls sit on top of the clone (link, feedback routing and tone, snap, fine, sync, scrub, square vibrato, presets). None of them is the hardware. Each is bypassed at its default, so a fresh instance is still exactly what this page describes. They're covered in [`phase1-design.md`](phase1-design.md), not here.
@@ -45,7 +45,7 @@ What they changed here: Mode and Memory Latch became per side, and the KB 2000 w
 | Memory latch per side; in quasi-stereo either side's holds both | Matches | A Memory Latch button and light per side on every panel; Henke: the two channels latch independently. Quasi-stereo has one write | `ChannelParams::freeze`, `Machine::apply` |
 | Pitch range 0.25× to 2× | Matches | Brochure: "from −2 to +1 octave" | `Musical`, plugin |
 | Delay limits 1200 / 600 / 300 ms at 5 / 10 / 20 kHz | Matches | Brochure | `Spec` |
-| A Delay change moves without pitch bend or clicks | Matches | Brochure: "continuous variation of delay without doppler effect nor switching noises". We crossfade to the new delay | `ReadVoice` |
+| A Delay change moves without pitch bend or clicks | Matches | Brochure: "continuous variation of delay without doppler effect nor switching noises". THE89TH crossfades to the new delay | `ReadVoice` |
 | Pre/de-emphasis in delay mode only | Matches | Research doc. Measured: >4 dB less converter noise in the treble, flat signal | `Emphasis` |
 | Short/long range divides the delay scale by ten | Matches | Research doc | `ReadVoice` |
 | Converter clips at full scale | Matches | Research doc | `FlyingComma` |
@@ -55,7 +55,7 @@ What they changed here: Mode and Memory Latch became per side, and the KB 2000 w
 
 ## Parts built to published behaviour, details assumed
 
-| Behaviour | What we chose | Why | Where to change it |
+| Behaviour | Choice | Why | Where to change it |
 |---|---|---|---|
 | Filter type | 8th-order Chebyshev I, 0.5 dB ripple, one each side of the converter, each −1.5 dB at the edge | Steep, rings at the edge like the low settings are described. Topology unpublished | `BandLimitFilter::kOrder`, `kRippleDb`, `kEdgeDb` |
 | Emphasis curve | 50/15 µs | The standard for PCM gear of that era. Curve unpublished | `Emphasis::kT1`, `kT2` |
@@ -70,9 +70,9 @@ What they changed here: Mode and Memory Latch became per side, and the KB 2000 w
 
 ## The KB 2000
 
-Its panel (Hainbach's video) names every section, and Publison's brochure says what each does. Neither gives times, ranges or scales, so those are ours. What the sources fix is marked as such; everything else in this table is a choice, made in one place.
+Its panel (Hainbach's video) names every section, and Publison's brochure says what each does. Neither gives times, ranges or scales, so those are choices made for the clone. What the sources fix is marked as such; everything else in this table is a choice, made in one place.
 
-| Behaviour | Source | What we chose | Where |
+| Behaviour | Source | Choice | Where |
 |---|---|---|---|
 | A key replaces the pitch pots of the sides it plays; silence latches and mutes | Research: the external pitch clock disconnects the pots, and holding it high latches and mutes, used for note-off | As sourced. "Silent" means the side's envelope has finished | `Keyboard::apply` |
 | Left / Right / Biphonic | Panel switch; brochure: "three voice chorus", "biphonic memory synthesizer" | Biphonic: the two newest keys, lower on the left, higher on the right; one key plays both. Otherwise the newest key sounds | `Keyboard::allocate` |
@@ -97,7 +97,7 @@ Its panel (Hainbach's video) names every section, and Publison's brochure says w
 | The display selector (Delay / Pitch ratio / Crosspoint 1 / Crosspoint 2 per side) | The plugin's display shows all of them at once |
 | Drift of the pitch oscillator | Hainbach: the tuning comes from an analog oscillator and never sits still. The size and speed of the drift are unknown |
 | D/A zero-order-hold droop | The published response is +0/−3 dB overall, so whatever droop existed is folded into the filters |
-| Unit-to-unit differences (6-knob vs 8-knob panels, RAM variants, expanded 5 s memory) | We clone one configuration: a later unit, standard memory |
+| Unit-to-unit differences (6-knob vs 8-knob panels, RAM variants, expanded 5 s memory) | THE89TH clones one configuration: a later unit, standard memory |
 
 ## Known limits of the plugin itself
 
@@ -118,6 +118,6 @@ Its panel (Hainbach's video) names every section, and Publison's brochure says w
 
 In order of how much each would settle:
 
-1. **Recordings from a working unit.** Impulses through each bandwidth, sweeps, and a tone through pitch shifts at fixed settings. With those we could fit the filters, the crossfade and Xing to the real machine.
+1. **Recordings from a working unit.** Impulses through each bandwidth, sweeps, and a tone through pitch shifts at fixed settings. With those, the filters, the crossfade and Xing could be fitted to the real machine.
 2. **The service manual's block diagram and IC map** (Studio Electronics, per the research doc). They'd confirm or correct the counter-based reading and the converter structure.
 3. **The community IC/schematic set** mentioned in the research. It could identify the crossfade stage and the converter's parts.

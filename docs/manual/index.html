@@ -16,6 +16,8 @@
     --faint: #4a4744;
     --orange: #ff6a13;
     --orange-dim: #7a3208;
+    --pin: #f2f0ec;
+    --pin-ring: rgba(242, 240, 236, 0.35);
     --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
     --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
     --step--1: 0.8125rem;
@@ -44,16 +46,11 @@
   kbd { border: 1px solid var(--hair-hi); padding: 0 0.35em; color: var(--text); }
 
   /* ── Hero ─────────────────────────────────────────────────────────────── */
-  .hero { position: relative; border-bottom: 1px solid var(--hair); }
-  .hero img { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; opacity: 0.9; }
-  .hero::after {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0) 75%),
-                linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 40%);
-  }
+  .hero { border-bottom: 1px solid var(--hair); display: grid; }
+  .hero img { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; }
   .hero-copy {
-    position: absolute; z-index: 1; left: 0; right: 0; bottom: 0;
-    padding-inline: max(16px, 5vw); padding-block: 0 clamp(20px, 4vw, 56px);
+    max-width: 1240px; width: 100%; margin: 0 auto;
+    padding-inline: max(16px, 4vw); padding-block: clamp(32px, 6vw, 72px) clamp(8px, 2vw, 24px);
     display: grid; gap: 0.75rem;
   }
   .eyebrow {
@@ -71,8 +68,10 @@
     font-family: var(--mono); font-size: var(--step--1); color: var(--dim); background: rgba(0,0,0,0.6);
   }
   .stamp b { color: var(--orange); font-weight: 600; }
+  .credit { font-family: var(--mono); font-size: var(--step--1); color: var(--dim); letter-spacing: 0.04em; }
+  .credit b { color: var(--text); font-weight: 600; }
   @media (max-width: 700px) {
-    .hero img { aspect-ratio: 4 / 3; }
+    .hero img { aspect-ratio: 16 / 9; }
     .hero p { font-size: var(--step-0); }
   }
 
@@ -150,16 +149,16 @@
   .pin {
     position: absolute; transform: translate(-50%, -50%);
     width: clamp(18px, 2.4vw, 28px); height: clamp(18px, 2.4vw, 28px); border-radius: 50%;
-    display: grid; place-items: center; background: var(--orange); color: #000;
-    font: 700 clamp(9px, 1.1vw, 13px) / 1 var(--mono); box-shadow: 0 0 0 3px rgba(0,0,0,0.75);
+    display: grid; place-items: center; background: var(--pin); color: #000;
+    font: 700 clamp(9px, 1.1vw, 13px) / 1 var(--mono); box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--pin-ring);
   }
-  ol.legend { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.35rem 1.5rem; counter-reset: pin; }
-  ol.legend li { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 0.5rem; align-items: baseline; font-size: 0.9375rem; }
+  ol.legend { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 0 2rem; counter-reset: pin; border-top: 1px solid var(--hair); }
+  ol.legend li { display: grid; grid-template-columns: 1.9rem minmax(0, 1fr); gap: 0.75rem; align-items: start; padding: 0.8rem 0; border-bottom: 1px solid var(--hair); font-size: 0.9375rem; color: var(--dim); }
   ol.legend li::before {
-    counter-increment: pin; content: counter(pin); font: 700 0.75rem / 1.6 var(--mono);
-    color: #000; background: var(--orange); border-radius: 50%; width: 1.3rem; height: 1.3rem; display: grid; place-items: center;
+    counter-increment: pin; content: counter(pin); font: 700 0.8125rem / 1 var(--mono);
+    color: #000; background: var(--pin); border-radius: 50%; width: 1.6rem; height: 1.6rem; display: grid; place-items: center;
   }
-  ol.legend b { font-family: var(--mono); font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  ol.legend b { display: block; font-family: var(--mono); font-size: 0.8125rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); margin-bottom: 0.2rem; }
 
   /* Signal chain. */
   .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-family: var(--mono); font-size: var(--step--1); }
@@ -199,13 +198,14 @@
 </style>
 
 <header class="hero">
-  <img src="img/hero.jpg" alt="A late-1970s digital effects rack in the dark, its orange LED displays lit.">
   <div class="hero-copy">
     <span class="eyebrow">User manual</span>
     <h1>THE89TH</h1>
-    <p>A 1978 French stereo pitch shifter and delay, rebuilt word for word, with the keyboard controller that turned it into a sampler.</p>
-    <span class="stamp">VERSION <b>0.5.0</b> VST3 · STANDALONE · APPLE SILICON</span>
+    <p>A software clone of a 1978 French stereo pitch shifter and delay, and of the keyboard controller that let you play it like a sampler.</p>
+    <span class="stamp">VERSION <b>0.5.0</b> FL STUDIO · ABLETON LIVE · VST3 · APPLE SILICON</span>
+    <span class="credit">Architected by <b>juniorljj</b> · programmed by Cursor, Codex and Claude</span>
   </div>
+  <img src="img/hero.jpg" alt="THE89TH's panel rendered as a black aluminium device, its orange displays glowing.">
 </header>
 
 <div class="wrap">
@@ -230,17 +230,34 @@
     <!-- ── Start ─────────────────────────────────────────────────────────── -->
     <section class="box" id="start">
       <h2>Start here</h2>
-      <p class="lede">THE89TH copies a machine from 1978: two channels of digital delay that can also shift pitch, reverse, and hold a sound in memory to play back like a tape loop. Everything the original does is here, and it sounds grainy and alive in the same ways. A row of modern extras sits on top. Each one does nothing until you turn it up, so a fresh instance is the original and nothing else.</p>
+      <p class="lede">THE89TH copies a machine from 1978: two channels of digital delay that can also shift pitch, reverse, and hold a sound in memory to play back like a tape loop. All of the original's front-panel controls are here, and so is the grainy character of its converter. A row of modern extras sits on top. Each one does nothing until you turn it up, so a fresh instance behaves like the original.</p>
+
+      <figure>
+        <img src="img/laptop.jpg" alt="THE89TH open on a laptop screen in a dark room, the panel's orange glow lighting the keyboard.">
+        <figcaption>Render made with Higgsfield from a capture of the real panel.</figcaption>
+      </figure>
 
       <h3>Install</h3>
-      <ul class="plain">
-        <li>The plugin installs to <code>~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3</code>. It runs on Apple Silicon Macs as a VST3 effect or as a standalone app.</li>
-        <li>In FL Studio, open <b>Options › Manage plugins</b> and rescan. THE89TH appears under effects, in the Delay category.</li>
-        <li>Put it on a mixer insert like any delay. It works in stereo or mono.</li>
-      </ul>
+      <p>THE89TH is a VST3 effect for Apple Silicon Macs, for <b>FL Studio</b> and <b>Ableton Live</b>. It installs to <code>~/Library/Audio/Plug-Ins/VST3/THE89TH.vst3</code>, the folder both DAWs scan. It works on stereo and mono tracks.</p>
+      <div class="split">
+        <div style="display:grid;gap:0.6rem">
+          <h3 style="margin-top:0">FL Studio</h3>
+          <ul class="plain">
+            <li>Open <b>Options › Manage plugins</b> and click <b>Find plugins</b>.</li>
+            <li>Load THE89TH in a mixer insert slot, like any delay.</li>
+          </ul>
+        </div>
+        <div style="display:grid;gap:0.6rem">
+          <h3 style="margin-top:0">Ableton Live</h3>
+          <ul class="plain">
+            <li>In <b>Settings › Plug-Ins</b>, turn on <b>Use VST3 Plug-In System Folders</b>, then click <b>Rescan</b>.</li>
+            <li>Find THE89TH under <b>Plug-Ins</b> in the browser and drop it on an audio track or a return track.</li>
+          </ul>
+        </div>
+      </div>
 
       <h3>After an update</h3>
-      <p>A running FL keeps the copy of the plugin it loaded first, even after a rescan. <b>Quit FL and open it again</b> to load a new version. The <b>Build</b> plate at the top right of the panel shows the version and build you are running, so you can always check.</p>
+      <p>A running DAW keeps the copy of the plugin it loaded first, even after a rescan. <b>Quit the DAW and open it again</b> to load a new version. The <b>Build</b> plate at the top right of the panel shows the version and build you are running.</p>
 
       <h3>First sound in thirty seconds</h3>
       <ul class="plain">
@@ -323,20 +340,20 @@
         <span class="pin" style="left:93.2%;top:39%">14</span>
       </div>
       <ol class="legend">
-        <li><span><b>Presets</b>, Save and A/B</span></li>
-        <li><span><b>Build</b>: version and build loaded</span></li>
-        <li><span><b>Init</b>: everything back to default</span></li>
-        <li><span><b>System</b>: Stereo, Range, Bandwidth</span></li>
-        <li><span><b>Output</b>: Mix</span></li>
-        <li><span><b>Keys</b>: the keyboard</span></li>
-        <li><span><b>Feedback loop</b> (modern)</span></li>
-        <li><span><b>Musical</b>: Snap, Sync (modern)</span></li>
-        <li><span><b>Scrub</b> (modern)</span></li>
-        <li><span><b>Mode</b> and <b>Latch</b>, per channel</span></li>
-        <li><span>The channel's <b>display</b></span></li>
-        <li><span><b>Read</b>: Delay, Pitch, Fine, Crosspoints</span></li>
-        <li><span><b>Recirculate</b> and <b>Vibrato</b></span></li>
-        <li><span><b>Link</b>: channel 2 follows channel 1</span></li>
+        <li><span><b>Presets</b>Step through presets with the arrows or pick one from the list. Save stores your own. A and B hold two settings to compare; switch between them while you tweak.</span></li>
+        <li><span><b>Build</b>The version and build your DAW has loaded. Check it after an update to be sure the new one is running.</span></li>
+        <li><span><b>Init</b>Puts every control back to its default and empties the memory. Use it to start from a clean machine.</span></li>
+        <li><span><b>System</b>Stereo, Range and Bandwidth, shared by both channels. Set these first: they decide how much memory each channel has and how grainy it sounds.</span></li>
+        <li><span><b>Output</b>Mix between your dry signal and the machine. On a send or return track, leave it at 100 %.</span></li>
+        <li><span><b>Keys</b>Plays the machine from a MIDI keyboard. Pick which channels the keys play, and open the keyboard page.</span></li>
+        <li><span><b>Feedback loop</b>Modern. Where each side's repeats go, plus tone controls that act on every repeat. Off at the defaults.</span></li>
+        <li><span><b>Musical</b>Modern. Snap puts Pitch on a scale; Sync turns Delay and the crosspoints into note values at your project tempo.</span></li>
+        <li><span><b>Scrub</b>Modern. Makes the played region drift through memory, for moving textures.</span></li>
+        <li><span><b>Mode and Latch</b>Delay or Pitch for this channel, and the memory latch that freezes what it holds. The two channels are set separately.</span></li>
+        <li><span><b>Display</b>This channel's memory as a circle: where it writes, which stretch it plays, and how the heads are moving. The top line names the setting you're turning.</span></li>
+        <li><span><b>Read</b>The main sound controls: Delay in Delay mode; Pitch, Fine and the two crosspoints in Pitch mode.</span></li>
+        <li><span><b>Recirculate and Vibrato</b>Feedback sends repeats back through the shifter. Vibrato wobbles the pitch.</span></li>
+        <li><span><b>Link</b>Channel 2 copies every channel 1 control, so you set up a stereo patch once.</span></li>
       </ol>
 
       <h3>Presets and A/B</h3>
@@ -442,7 +459,7 @@
         <dt>Snap</dt>
         <dd>Pulls the Pitch knobs onto a scale counted from the unshifted note: chromatic, major, minor or pentatonic.</dd>
         <dt>Sync</dt>
-        <dd>Delay and both crosspoints step through note values, 1/64 to a whole note with triplets and dotted, at the host tempo. A value longer than the memory holds reads <b>&gt; MAX</b> and plays at the longest that fits.</dd>
+        <dd>Delay and both crosspoints step through note values, 1/64 to a whole note with triplets and dotted, at the project tempo. A value longer than the memory holds reads <b>&gt; MAX</b> and plays at the longest that fits.</dd>
         <dt>Scrub<small>Depth · Speed · LFO / RND</small></dt>
         <dd>Slides the region back and forth by up to its own length each way. LFO sways; RND wanders to a new spot each cycle. It needs a region smaller than the whole memory.</dd>
       </dl>
@@ -455,18 +472,27 @@
     <!-- ── Keyboard ──────────────────────────────────────────────────────── -->
     <section class="box" id="keyboard">
       <h2>Keyboard</h2>
-      <figure>
-        <img src="img/keyboard.jpg" alt="A vintage three-octave keyboard controller with coloured knobs and a row of red lights.">
-      </figure>
-      <p class="lede">The original was sold with a three-octave keyboard controller that played its pitch clock. It turned the machine into one of the first samplers. THE89TH plays the same controller from MIDI.</p>
-      <p>Its layout and behaviour come from photos of a working unit and the original brochure. They say what every section does but give no times or ranges, so those are our choices.</p>
+      <p class="lede">The original was sold with a three-octave keyboard controller that drove its pitch clock, so you could play the machine like a sampler. THE89TH copies that controller and plays it from MIDI.</p>
+      <p>Its sections and what they do come from photos of a working unit and the original brochure. Neither gives times or ranges, so the ranges on this page are choices made for the clone.</p>
 
-      <h3>Getting MIDI in, in FL Studio</h3>
-      <ul class="plain">
-        <li>Add a <b>MIDI Out</b> channel to the Channel Rack and give it a port number.</li>
-        <li>Open THE89TH's wrapper settings (the gear icon) and set its <b>MIDI input port</b> to the same number.</li>
-        <li>Notes on the MIDI Out channel, or your keyboard with it selected, now play the plugin.</li>
-      </ul>
+      <div class="split">
+        <div style="display:grid;gap:0.6rem">
+          <h3 style="margin-top:0">MIDI in FL Studio</h3>
+          <ul class="plain">
+            <li>Add a <b>MIDI Out</b> channel to the Channel Rack and give it a port number.</li>
+            <li>Open THE89TH's wrapper settings (the gear icon) and set its <b>MIDI input port</b> to the same number.</li>
+            <li>Notes on the MIDI Out channel, or your keyboard with it selected, now play the plugin.</li>
+          </ul>
+        </div>
+        <div style="display:grid;gap:0.6rem">
+          <h3 style="margin-top:0">MIDI in Ableton Live</h3>
+          <ul class="plain">
+            <li>Make a MIDI track. Set its <b>MIDI To</b> to the track holding THE89TH, then pick <b>THE89TH</b> in the box below it.</li>
+            <li>Set the MIDI track's <b>Monitor</b> to <b>In</b>, or arm it, so your keyboard reaches the plugin.</li>
+            <li>Clips on the MIDI track play the plugin too.</li>
+          </ul>
+        </div>
+      </div>
 
       <h3>The Keys box</h3>
       <dl class="controls">
@@ -511,7 +537,7 @@
       </dl>
 
       <h3>Memory Synchro</h3>
-      <p>For latched memory: the original's "biphonic memory synthesizer". Record something, latch it, then play it from the keys.</p>
+      <p>For latched memory, the brochure's biphonic memory synthesizer. Record something, latch it, then play it from the keys.</p>
       <dl class="controls">
         <dt>Sides<small>Off · L · R · Both</small></dt><dd>Which channels it acts on. <span class="src">Original</span></dd>
         <dt>Attack pt</dt><dd>Where in memory each note starts, counted from the oldest sound.</dd>
@@ -557,7 +583,7 @@
         </article>
         <article class="recipe">
           <h4>Digital glitch campfire</h4>
-          <p>The trick from the original's demos: hold a loop and flip the clock while it plays.</p>
+          <p>A trick from demos of the original: hold a loop and flip the clock while it plays.</p>
           <div class="set"><span>Feedback <b>high</b></span><span>Latch <b>on</b></span><span>Bandwidth <b>flip 5K ↔ 10K</b></span></div>
         </article>
         <article class="recipe">
@@ -583,26 +609,30 @@
       <h2>Tips & limits</h2>
       <dl class="controls">
         <dt>Run at 48 kHz</dt><dd>At a 44.1 kHz project rate the host itself stops at 22.05 kHz, so the filters cap slightly below 20 kHz. 48 kHz or higher gets the full band.</dd>
-        <dt>Latency</dt><dd>The plugin reports a fixed 3.3 ms and holds the dry signal back by the same amount, so the host keeps everything in time. The delay you set is on top of that, as it should be.</dd>
+        <dt>Latency</dt><dd>The plugin reports a fixed latency of about 3.3 ms and holds the dry signal back by the same amount, so FL Studio and Live keep everything in time. The delay you set comes on top of that.</dd>
         <dt>Peaks above 0 dBFS</dt><dd>Mid-crossfade the two heads can add up, and heavy feedback clips the converter, whose steep filter then overshoots. Expect up to about +5 dB at extreme feedback. Nothing clips inside the plugin; watch the channel meter.</dd>
         <dt>Short regions</dt><dd>Very short crosspoint regions splice many times a second. That buzz is part of the sound; for smooth shifts keep the region at 10 ms or more.</dd>
-        <dt>Updates in FL</dt><dd>Quit and reopen FL after installing a new build. The Build plate shows which one is loaded.</dd>
+        <dt>Updates</dt><dd>Quit and reopen FL Studio or Live after installing a new build. The Build plate shows which one is loaded.</dd>
       </dl>
     </section>
 
     <!-- ── Original ──────────────────────────────────────────────────────── -->
     <section class="box" id="original">
       <h2>Next to the original</h2>
-      <p>THE89TH is modelled on the original's design: the same memory, 16,384 thirteen-bit words, the same clock, the same converter format, the same two-head mechanism, word-for-word reading and the same switches. Its figures match the original's published ones. The layout of both front panels and the keyboard's behaviour come from photos of working units and the original brochure.</p>
-      <p>Where nothing is published we chose, and wrote the choice down: the filter shape, the treble-lift curve, how the join search picks its points, and the keyboard's times and ranges. The original's rear-panel control sockets, the keyboard's microphone input and the slow drift of its analog pitch oscillator are left out.</p>
+      <figure>
+        <img src="img/original-sketch.jpg" alt="Line sketch of the original unit's front panel: two LED displays in the top strip, a column of three buttons at each side, two groups of knobs and a centre strip of switches.">
+        <figcaption>The original's front panel, as a sketch. <b>Illustration</b>, generated from a description of the panel's layout; not a photograph.</figcaption>
+      </figure>
+      <p>THE89TH is modelled on the original's design: 16,384 thirteen-bit words of memory, the same clock, the same converter format, the same two-head mechanism, reading whole words, and the same switches. Its delay limits, pitch range and bandwidths match the original's published figures. The layout of both panels and the keyboard's behaviour come from photos of working units and the original brochure.</p>
+      <p>Where nothing is published, the clone makes a choice and the project's notes record it: the filter shape, the treble-lift curve, how the join search picks its points, and the keyboard's times and ranges. The original's rear-panel control sockets, the keyboard's microphone input and the slow drift of its analog pitch oscillator are left out. No unit has been measured against the clone yet.</p>
       <p class="dim">The full list, with every behaviour marked as matching, derived, assumed or not modelled, is <code>docs/clone-status.md</code> in the project.</p>
     </section>
   </main>
 </div>
 
 <footer>
-  <span>THE89TH · user manual · version 0.5.0</span>
-  <span>Images: panel captures from the plugin; photography generated with Higgsfield</span>
+  <span>THE89TH 0.5.0 · architected by juniorljj · programmed by Cursor, Codex and Claude</span>
+  <span>Panel captures from the plugin itself. Product renders and the sketch of the original made with Higgsfield.</span>
 </footer>
 
 <script>

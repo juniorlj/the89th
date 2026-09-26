@@ -22,13 +22,13 @@ The 1978 machine did all of this with about 200 logic chips and no computer in i
 
 ---
 
-## What we built
+## What THE89TH is
 
 The same thing, in software.
 
 A block of memory stands in for the tape. A write pointer walks through it at a steady rate. Two read pointers walk through it at whatever rate the Pitch knob says. Two crosspoint controls fence off the region. When a read pointer reaches the far fence it jumps to the near one, and the two pointers crossfade across the jump.
 
-That is not a description of the sound we were aiming at. It is a description of the code.
+That is not a description of a target sound. It is a description of the code.
 
 ---
 
@@ -40,7 +40,7 @@ Four things fall out of building it this way instead of faking the result.
 
 On the original, reverse is not a button. You get it by setting crosspoint 1 deeper than crosspoint 2, which makes the read pointer travel the other way through memory.
 
-Ours works the same way. There is no reverse switch and no separate reverse code. Swap the two crosspoints and the pointer runs backwards, because the direction is worked out from which crosspoint is which.
+THE89TH works the same way. There is no reverse switch and no separate reverse code. Swap the two crosspoints and the pointer runs backwards, because the direction is worked out from which crosspoint is which.
 
 This matters because reverse then combines with everything else for free. Reverse plus pitch up, reverse plus freeze, reverse plus feedback: none of those are special cases anybody wrote. They just happen. On a box where reverse was bolted on as a mode, some of those combinations would not work, or would work differently.
 
@@ -50,23 +50,23 @@ The original has a 5 / 10 / 20 kHz switch. It sounds like a tone control. It is 
 
 Flip it while sound is in memory and the pitch of what is already stored jumps by an octave, because the same recording is now being replayed at a different speed. On the hardware that is a side effect nobody designed. Players use it deliberately.
 
-Ours does the same, and for the same reason rather than by imitation. Flipping the switch changes the clock and touches nothing else. What is already in memory stays exactly where it is and gets replayed at the new speed. There is a test that flips the switch and checks that not one value in memory moved.
+THE89TH does the same, and for the same reason rather than by imitation. Flipping the switch changes the clock and touches nothing else. What is already in memory stays exactly where it is and gets replayed at the new speed. There is a test that flips the switch and checks that not one value in memory moved.
 
-We could have faked this by detecting the switch and shifting the pitch. We did not, and a faked version would come apart the moment you combined it with freeze or reverse.
+Faking this by detecting the switch and shifting the pitch would have been easier, and a faked version would come apart the moment you combined it with freeze or reverse.
 
 ### Freeze loops instead of freezing
 
 Freeze on the original stops recording but keeps playing. So the fenced-off region loops round and round, and you can still pitch it and reverse it. It is a sampler, years before that word meant anything.
 
-Ours stops the write pointer and lets the read pointers carry on. Because pitch and direction were never tied to recording, they keep working on the frozen sound with no extra code.
+THE89TH stops the write pointer and lets the read pointers carry on. Because pitch and direction were never tied to recording, they keep working on the frozen sound with no extra code.
 
-There is a small detail here that is easy to get wrong. If you stop the recorder and the playback head is running at exactly the same speed, both are still and you get one sample held forever, a dead tone. The real machine loops. Ours works out the read speed relative to the recorder, so when the recorder stops the read pointer starts moving through memory on its own. Freeze loops the region, as it should.
+There is a small detail here that is easy to get wrong. If you stop the recorder and the playback head is running at exactly the same speed, both are still and you get one sample held forever, a dead tone. The real machine loops. THE89TH works out the read speed relative to the recorder, so when the recorder stops the read pointer starts moving through memory on its own. Freeze loops the region, as it should.
 
 ### Feedback runs through the pitch shifter
 
 Feedback on most delays repeats the same sound quieter each time. Here the repeats go back through the pitch shifter, so each one comes back shifted again: up, up, up, or down, down, down. It arpeggiates. That is one of the sounds the box is known for.
 
-Ours takes the feedback from after the pitch shift, so the repeats stack up the same way.
+THE89TH takes the feedback from after the pitch shift, so the repeats stack up the same way.
 
 ---
 
@@ -94,15 +94,15 @@ It also settled the storage format. The original stored sound in an unusual form
 
 **Word-by-word reading.** The original reads memory with counters and no arithmetic, so a moving playback head just takes whichever stored word it lands on. It repeats some and skips others. Phase 0 blended neighbouring words together, which is cleaner than the original and lost treble at the top of each band. Now it reads word by word.
 
-**The filters.** The original has filters either side of its converter. We added them. At the 5 kHz setting, the false tone at 12.8 kHz that Phase 0 made nearly as loud as the note is now over 150 dB down. Each band reaches its published −3 dB point at 5, 10 or 20 kHz.
+**The filters.** The original has filters either side of its converter, and so does THE89TH now. At the 5 kHz setting, the false tone at 12.8 kHz that Phase 0 made nearly as loud as the note is now over 150 dB down. Each band reaches its published −3 dB point at 5, 10 or 20 kHz.
 
-**The smart join.** The original picks where to join so the waveform lines up. Ours now does too. At each join it searches for the spot where the stored sound best matches what's playing, and jumps there. On a steady tone the join becomes inaudible: even a join with no fade at all makes no click. Nobody has published how the original circuit did this. So ours copies what it does, not how. It's the part most likely to sound different from a real one.
+**The smart join.** The original picks where to join so the waveform lines up. THE89TH now does too. At each join it searches for the spot where the stored sound best matches what's playing, and jumps there. On a steady tone the join becomes inaudible: even a join with no fade at all makes no click. Nobody has published how the original circuit did this. So THE89TH copies what it does, not how. It's the part most likely to sound different from a real one.
 
 **The short range and vibrato.** Later units had a switch that divides the delay range by ten, for doubling and flanging. They also had vibrato depth and speed per channel. Both are in.
 
-**The keyboard.** The original had a companion keyboard, the KB 2000. Ours takes MIDI instead, and copies its panel section by section, going by photos of a real one and Publison's own brochure. A key plays the pitch; two keys in biphonic mode play one on each side. Notes can fade in and out through an envelope, slide from one to the next, and carry a vibrato that grows as the note goes on. Memory Synchro plays a latched recording like a sampler: every note starts at the same spot, loops a chosen stretch while you hold it, and can read faster or slower than recorded without changing pitch. Reverse Synchro listens for attacks in the incoming sound and restarts the reverse on each one, so a reversed drum part stays in time. When a side falls silent it holds its memory, exactly as the hardware did at note-off. It's all off by default. The brochure names what each part does but gives no times or ranges, so those are ours.
+**The keyboard.** The original had a companion keyboard, the KB 2000. THE89TH takes MIDI instead, and copies its panel section by section, going by photos of a real one and Publison's own brochure. A key plays the pitch; two keys in biphonic mode play one on each side. Notes can fade in and out through an envelope, slide from one to the next, and carry a vibrato that grows as the note goes on. Memory Synchro plays a latched recording like a sampler: every note starts at the same spot, loops a chosen stretch while you hold it, and can read faster or slower than recorded without changing pitch. Reverse Synchro listens for attacks in the incoming sound and restarts the reverse on each one, so a reversed drum part stays in time. When a side falls silent it holds its memory, exactly as the hardware did at note-off. It's all off by default. The brochure names what each part does but gives no times or ranges, so those are choices made for the clone.
 
-**What's still missing:** the rear-panel control sockets and the slow drift of the original's analog pitch oscillator. The sockets control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those we made reasoned choices and wrote them down. [`clone-status.md`](clone-status.md) lists each one.
+**What's still missing:** the rear-panel control sockets and the slow drift of the original's analog pitch oscillator. The sockets control the machine; they aren't part of its sound. Some details aren't published anywhere, like the exact filter shape, the treble-lift curve and the vibrato ranges. For those the clone makes reasoned choices, and the project's notes record them. [`clone-status.md`](clone-status.md) lists each one.
 
 ---
 

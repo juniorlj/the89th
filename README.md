@@ -1,8 +1,10 @@
 # THE89TH
 
-Private Mac VST3 effect plugin. A dual-channel pitch-shifting delay, cloned from a 1978 French studio box.
+Private Mac VST3 effect plugin for FL Studio and Ableton Live. A dual-channel pitch-shifting delay, cloned from a 1978 French studio box.
 
-**Status:** the original's signal path is cloned as far as the published record allows, and so is its companion keyboard, played over MIDI. On top sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon. Version `0.5.0`. The user manual is [`docs/manual/`](docs/manual/index.html).
+Architected by juniorljj. Programmed by Cursor, Codex and Claude.
+
+**Status:** the original's signal path is cloned as far as the published record allows, and so is its companion keyboard, played over MIDI. On top sit modern controls (link, feedback routing and tone, snap, sync, scrub), all off by default, plus presets with A/B compare. Custom interface. VST3 + Standalone, Apple Silicon; runs in FL Studio and Ableton Live. Version `0.5.0`. The user manual is [`docs/manual/`](docs/manual/index.html).
 
 ## Build
 
@@ -21,7 +23,9 @@ ctest --test-dir build --output-on-failure
 
 Needs CMake, Ninja and Apple clang. JUCE and Catch2 download on first configure.
 
-**Rebuilding while FL is open:** FL keeps the build it loaded first until you quit it. Rescanning, "Reload plugin" and re-adding the plugin all return the old code, because macOS keeps a loaded plugin in memory. Quit and reopen FL after a rebuild, then check the build number in the top-right corner of the panel. For fast iteration without a host, `cmake --build build --target run_the89th` rebuilds and restarts the Standalone app.
+**Loading it:** in FL Studio, *Options › Manage plugins › Find plugins*. In Ableton Live, turn on *Settings › Plug-Ins › Use VST3 Plug-In System Folders* and click *Rescan*; Live's scanner reads `~/Library/Audio/Plug-Ins/VST3`.
+
+**Rebuilding while a DAW is open:** FL Studio and Live keep the build they loaded first until you quit them. Rescanning, "Reload plugin" and re-adding the plugin all return the old code, because macOS keeps a loaded plugin in memory. Quit and reopen the DAW after a rebuild, then check the build number in the top-right corner of the panel. For fast iteration without a host, `cmake --build build --target run_the89th` rebuilds and restarts the Standalone app.
 
 ## Validate
 
@@ -59,7 +63,7 @@ The panel opens at 1100 × 800 and resizes from 880 to 1760 wide, keeping its pr
 **PRESETS** (the strip along the top)
 - **◀ ▶** step through presets; click the name for the full list. An asterisk means you've changed something since loading it.
 - **Save** stores the panel as one of your presets, in `~/Library/Application Support/THE89TH/Presets`, one file each. The list also has *Delete* and *Show preset folder*. Factory presets can't be overwritten.
-- **A / B** holds two complete settings. Switching keeps the one you leave, so you can flip back and forth while you tweak; the first switch copies the current setting across. **A>B** copies the side you're on to the other. Both slots are saved with the FL project.
+- **A / B** holds two complete settings. Switching keeps the one you leave, so you can flip back and forth while you tweak; the first switch copies the current setting across. **A>B** copies the side you're on to the other. Both slots are saved with the project.
 
 **SYSTEM** holds the switches both channels share.
 - **Stereo.** *True* gives two independent channels, each with half the memory. *Quasi* feeds one input into the whole memory, so both channels play the same recording with their own pitch and crosspoints, and 20 kHz becomes available.
@@ -83,7 +87,8 @@ The panel opens at 1100 × 800 and resizes from 880 to 1760 wide, keeping its pr
   - **Vibrato** (*On*): frequency, sharpness (sine towards square) and depth, and a modulator that each note starts: *Mod freq / sharp / depth* set how far it pulls each one, *Mod attack / release* how fast.
   - **Memory Synchro:** for latched memory. Each note starts reading at the *Attack pt*, runs to the *End pt*, then loops from the *Return pt* while the note lasts. Points count from the oldest sound in memory. *Speed* 1× reads as recorded, slower or faster stretches time without changing pitch; *Free* reads at the pitch, like tape. The row of lights shows where each side is reading.
   - **Reverse Synchro:** for live input. Each attack in the input restarts the side's traversal after *Delay*, so reversed segments keep the original's tempo. *Threshold* is what counts as an attack. *Gate* mutes the side while the input stays below it.
-- In FL, effects get MIDI by port: add a **MIDI Out** channel, give it a port number, and set the same number as this plugin's MIDI input port in its wrapper settings (gear icon). Notes on the MIDI Out channel, or your keyboard with it selected, then play the plugin.
+- **FL Studio:** effects get MIDI by port. Add a **MIDI Out** channel, give it a port number, and set the same number as this plugin's MIDI input port in its wrapper settings (gear icon). Notes on the MIDI Out channel, or your keyboard with it selected, then play the plugin.
+- **Ableton Live:** make a MIDI track, set its *MIDI To* to the track holding THE89TH and pick THE89TH in the box below, then set the MIDI track's Monitor to *In* (or arm it).
 
 The next row is modern additions, not on the original. Each one does nothing at its default, so a fresh instance is still the 1978 machine.
 
@@ -93,7 +98,7 @@ The next row is modern additions, not on the original. Each one does nothing at 
 
 **MUSICAL**
 - **Snap** pulls the Pitch knobs onto a scale, counted from the unshifted note: chromatic, major, minor or pentatonic.
-- **Sync** makes Delay and both crosspoints step through note values (1/64 up to a whole note, with triplets and dotted) at FL's tempo. A note longer than the memory holds reads *> MAX* and plays at the longest length that fits.
+- **Sync** makes Delay and both crosspoints step through note values (1/64 up to a whole note, with triplets and dotted) at the project tempo. A note longer than the memory holds reads *> MAX* and plays at the longest length that fits.
 
 **SCRUB** slides the crosspoint region back and forth, by up to its own length each way. *LFO* sways smoothly; *RND* wanders to a new spot each cycle. It needs a region smaller than the whole memory to have room to move.
 
@@ -101,7 +106,7 @@ The next row is modern additions, not on the original. Each one does nothing at 
 - **Mode** and **Latch** sit at the channel's outer edge, one set per side as on the hardware. *Delay* gives the channel a plain delay set by its Delay knob, with the treble lift. *Pitch* makes its heads move through the crosspoint region at the Pitch ratio. **Latch** (the Memory Latch) stops recording and keeps looping the crosspoint region, with pitch and reverse still active; it lights solid orange while latched. In Quasi-stereo there is one recording, so either latch holds both sides.
 - **Delay:** the delay time in Delay mode. It fades when Pitch mode is on.
 - **Pitch:** 0.25× to 2× (−24 to +12 semitones). Its ring lights from the centre, where the pitch is unchanged.
-- **Fine:** ±100 cents on top of Pitch. The original has Coarse and Fine pitch pots; the ±100 cent span is ours.
+- **Fine:** ±100 cents on top of Pitch. The original has Coarse and Fine pitch pots; the ±100 cent span is a choice made for the clone.
 - **Crosspoint 1 / 2:** the region the heads play, shown in ms (or note values under Sync). Set Crosspoint 1 deeper than Crosspoint 2 and the region plays in **reverse**.
 - **Feedback:** repeats go back through the pitch shifter, so they climb or fall in pitch.
 - **Vibrato depth / speed / shape.** *SIN* is the original's. *SQR* is modern: in Pitch mode it jumps up by the depth and back, a trill; in Delay mode it alternates up and down, since a delay line can't stay sharp.
@@ -135,7 +140,7 @@ Options: `--mode delay|pitch`, `--stereo true|quasi`, `--range long|short`, `--b
 build/plugin/the89th-snapshot out.png [width] [pitch|delay|freeze|quasi|modern|keys|kb]
 ```
 
-Runs audio through the real plugin and renders the panel to a PNG, so you can check the interface without opening FL. The mockups the design came from are in [`docs/design/`](docs/design/).
+Runs audio through the real plugin and renders the panel to a PNG, so you can check the interface without opening a DAW. The mockups the design came from are in [`docs/design/`](docs/design/).
 
 ## Layout
 
